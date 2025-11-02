@@ -4,7 +4,7 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 ⚠️ Disclaimer: O projeto é para fins educacionais e acadêmicos somente. Os dados foram coletados de forma pública, sem violar nenhum termo de uso do site. Nenhum dado pessoal foi armazenado.
 
 # Funcionamento do programa
-1. Faz uma raspagem de dados dos imóveis de perfil universitário: Apartamentos/Kitchnets/Studios em bairros próximos às faculdades, com faixa de preço até R$ 3000, usando Selenium.
+1. Faz uma raspagem de dados básicos dos imóveis (bairro, valor total / mensal, nº de dormitórios) de perfil universitário: Apartamentos/Kitchnets/Studios em bairros próximos às faculdades, com faixa de preço até R$ 3000, usando Selenium.
 2. Trata e armazena todas as informações em um DataFrame, usando Pandas.
 3. (WIP) Utiliza a API do Google Maps, junto ao Folium, para mapear e ilustrar todos os dados coletados.
 4. (WIP) Faz um mapa geográfico interativo que classifica as análises quantitativas por cor para melhor visualização.   
