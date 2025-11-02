@@ -4,10 +4,10 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 ⚠️ Disclaimer: O projeto é para fins educacionais e acadêmicos somente. Os dados foram coletados de forma pública, sem violar nenhum termo de uso do site. Nenhum dado pessoal foi armazenado.
 
 # Funcionamento do programa
-- Faz uma raspagem de dados dos imóveis de perfil universitário: Apartamentos/Kitchnets/Studios em bairros próximos às faculdades, com faixa de preço até R$ 3000, usando Selenium.
-- Trata e armazena todas as informações em um DataFrame, usando Pandas.
-- (WIP) Utiliza a API do Google Maps, junto ao Folium, para mapear e ilustrar todos os dados coletados.
-- (WIP) Faz um mapa geográfico interativo que classifica as análises quantitativas por cor para melhor visualização.   
+1. Faz uma raspagem de dados dos imóveis de perfil universitário: Apartamentos/Kitchnets/Studios em bairros próximos às faculdades, com faixa de preço até R$ 3000, usando Selenium.
+2. Trata e armazena todas as informações em um DataFrame, usando Pandas.
+3. (WIP) Utiliza a API do Google Maps, junto ao Folium, para mapear e ilustrar todos os dados coletados.
+4. (WIP) Faz um mapa geográfico interativo que classifica as análises quantitativas por cor para melhor visualização.   
 
 # Estrutura do projeto
 📂 imobiliario_universitario  
@@ -16,12 +16,12 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 tabulacao_de_dados.py  # Contém a função que limpa e tabula os dados coletados  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 web_scraping.py  # Contém a função que faz o Scrap  
 
-# 🔎 Classificações e filtros planejados
+# Classificações e filtros planejados
 - Média de aluguel por bairro, podendo filtrar por faixa de preço e pelo número de dormitórios.
 - Maior e menor valor de imóvel por bairro, podendo filtrar pelo número de dormitórios.
 - Quantidade de imóveis por bairro, podendo filtrar por faixa de preço e pelo número de dormitórios.
 
-# 💻 Tecnologias utilizadas
+# Tecnologias utilizadas
 └── Python 🐍  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Selenium  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Pandas  
