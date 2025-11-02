@@ -7,7 +7,7 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 📂 imobiliario_universitario  
 ├── 📄 main.py  # Arquivo principal que roda tudo  
 └── 📂 scripts  
-&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 tabulacao_de_dados.py  # Contém a função que limpa e tabula os dados coletados  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 tabulacao_de_dados.py  # Contém a função que limpa e tabula os dados coletados  
 &nbsp;&nbsp;&nbsp;&nbsp;└── 📄 web_scraping.py  # Contém a função que faz o Scrap  
 
 # 🔎 Classificações e filtros planejados
