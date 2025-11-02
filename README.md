@@ -3,12 +3,49 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 
 ⚠️ Disclaimer: O projeto é para fins educacionais e acadêmicos somente. Os dados foram coletados de forma pública, sem violar nenhum termo de uso do site. Nenhum dado pessoal foi armazenado.
 
-# 🔎 Classificações e filtros planejados:
+# Estrutura do projeto
+|   .gitattributes
+|   estrutura.txt
+|   main.py
+|   README.md
+|   
++---.idea
+|   |   .gitignore
+|   |   imobiliario_universitario.iml
+|   |   misc.xml
+|   |   modules.xml
+|   |   vcs.xml
+|   |   workspace.xml
+|   |   
+|   \---inspectionProfiles
+|           profiles_settings.xml
+|           
+\---scripts
+    |   tabulaþÒo_de_dados.py
+    |   web_scraping.py
+    |   
+    +---.idea
+    |   |   .gitignore
+    |   |   misc.xml
+    |   |   modules.xml
+    |   |   scripts.iml
+    |   |   vcs.xml
+    |   |   workspace.xml
+    |   |   
+    |   \---inspectionProfiles
+    |           profiles_settings.xml
+    |           
+    \---__pycache__
+            tabulaþÒo_de_dados.cpython-313.pyc
+            web_scraping.cpython-313.pyc
+            
+
+# 🔎 Classificações e filtros planejados
 - Média de aluguel por bairro, podendo filtrar por faixa de preço e pelo número de dormitórios.
 - Maior e menor valor de imóvel por bairro, podendo filtrar pelo número de dormitórios.
 - Quantidade de imóveis por bairro, podendo filtrar por faixa de preço e pelo número de dormitórios.
 
-# 💻 Tecnologias utilizadas:
+# 💻 Tecnologias utilizadas
 - Python 
 - Selenium
 - Pandas
