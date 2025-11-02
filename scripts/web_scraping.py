@@ -79,7 +79,7 @@ def Scraper():
             bairro = ap.find_element(By.CLASS_NAME, 'card-bairro-cidade-texto').text
             link_detalhes = ap.find_element(By.TAG_NAME, 'a').get_attribute('href')  # Pega o link da aba específica daquele imóvel
             navegador.execute_script(
-                f"window.open('{link_detalhes}');")  # Abre o link por meio de um script JS que também tive que pesquisar no GPT, porque não manjo
+                f"window.open('{link_detalhes}');")  # Abre o link por meio de um script JS que tive que pesquisar no GPT, porque não manjo
             aba_atual = navegador.window_handles[0]
             aba_nova = navegador.window_handles[-1]
             navegador.switch_to.window(aba_nova)
