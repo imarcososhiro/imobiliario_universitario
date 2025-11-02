@@ -6,8 +6,9 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 # Funcionamento do programa
 1. Faz uma raspagem de dados básicos dos imóveis (bairro, valor total mensal, nº de dormitórios) de perfil universitário: Apartamentos/Kitchnets/Studios em bairros próximos às faculdades, com faixa de preço até R$ 3000, usando Selenium.
 2. Trata e armazena todas as informações em um DataFrame, usando Pandas.
-3. (WIP) Utiliza a API do Google Maps, junto ao Folium, para mapear e ilustrar todos os dados coletados.
-4. (WIP) Faz um mapa geográfico interativo que classifica as análises quantitativas por cor para melhor visualização.   
+3. (WIP) Por meio do Streamlit, cria filtros e exibições específicas dos dados do DataFrame.
+4. (WIP) Utiliza a API do Google Maps, junto ao Folium, para mapear e ilustrar todos esses dados coletados.
+5. (WIP) Juntando tudo, faz um mapa geográfico interativo que classifica as análises quantitativas por cor para melhor visualização.   
 
 # Estrutura do projeto
 📂 imobiliario_universitario  
@@ -23,11 +24,13 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 
 # Tecnologias utilizadas
 └── Python 🐍  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Selenium  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Pandas  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Folium (Planejado)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Requests (Planejado)  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── API Google Maps (Planejado)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Selenium  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Pandas  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── API Google Maps (Planejado)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── Requests (Planejado)  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Folium (Planejado)    
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── Streamlit (Planejado)  
+
 
 # 🚨 Observações
 - A raspagem ainda não acontece para todos os bairros. Esse é um estudo a ser realizado no final no projeto, por enquanto seleciono de 1 a 3 para testes.
