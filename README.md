@@ -22,3 +22,7 @@ Esse projeto tem o intuito de realizar uma coleta de dados dos imóveis da cidad
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Folium (Planejado)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── Requests (Planejado)  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── API Google Maps (Planejado)  
+
+# 🚨 Observações
+- A raspagem ainda não acontece para todos os bairros. Esse é um estudo a ser realizado no final no projeto, por enquanto seleciono de 1 a 3 para testes.
+- A criação do arquivo main.py, que por enquanto tem somente 4 linhas de código, é puramente para melhorar a organização do código, em scripts.
