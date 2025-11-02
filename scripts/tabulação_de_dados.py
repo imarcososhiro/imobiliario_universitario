@@ -2,7 +2,7 @@ import pandas as pd
 from scripts.web_scraping import *
 
 # Pt. 1 - Limpando e formatando dados brutos
-# Eliminando itens desnecessários (ex: valor de venda do imóvel), e formatando valores (ex: RS 700,00 -str- para 700 -int-)
+# Eliminando itens desnecessários (ex: valor de venda do imóvel), e formatando valores (ex: RS 700,00 -> str para 700.00 -> float)
 
 
 def Dataset():
