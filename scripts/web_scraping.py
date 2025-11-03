@@ -35,7 +35,7 @@ def Scraper():
     cidade_select = Select(cidade_tag_select)
     cidade_select.select_by_value('190')
 
-    # Filtrar por tipo (Apartamento, Kitchnet, Studio, com/sem condomínio)
+    # Filtrar por tipo (Apartamento, Kitchnet, Studio, com/sem condomínio) - mudar para select depois, pra evitar achar pelo xpath
     navegador.find_element(By.XPATH, '//*[@id="pesquisa_imoveis"]/div[3]/div[4]/div/button').click()
     navegador.find_element(By.XPATH, '//*[@id="bs-select-2-1"]').click()
     navegador.find_element(By.XPATH, '//*[@id="bs-select-2-2"]').click()
@@ -48,16 +48,13 @@ def Scraper():
     navegador.find_element(By.XPATH, '//*[@id="bs-select-2-13"]').click()
     navegador.find_element(By.XPATH, '//*[@id="bs-select-2-15"]').click()
 
-    # Filtrar pelos bairros
-    #navegador.find_element(By.XPATH, '//*[@id="pesquisa_imoveis"]/div[3]/div[5]/div/button/div/div/div').click()
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1033"]').click() # Centro 1 - tirar dps
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1034"]').click() # Centro 2
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1045"]').click() # Cidade Jardim
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1046"]').click() # Cidade Universitária
-    navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1107"]').click() # Jardim Lutfalla
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1184"]').click() # Parque Arnold Schdmith
-    #navegador.find_element(By.XPATH, '//*[@id="bs-select-3-1275"]').click() # Vila Costa do Sol
 
+    # Filtrar pelos bairros - add o resto depois
+    bairro = navegador.find_element(By.XPATH, '//*[@id="pesquisa_imoveis"]/div[3]/div[5]/div')
+    bairro_tag_select = bairro.find_element(By.TAG_NAME, 'select')
+    bairro_select = Select(bairro_tag_select)
+    bairro_select.select_by_value('16743') #Centro 1 - só pra teste, tirar dps
+    
     # Confirmar filtro
     navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
     #===========================================================================================================#
@@ -104,7 +101,7 @@ def Scraper():
         contador_paginas += 1
 
 
-    #Extraindo links das páginas 2,3, 4... e iterando a extração de dados sobre cada uma delas
+    #Extraindo links das páginas 2,3,4,etc e iterando a extração de dados sobre cada uma delas
     pagina_div = navegador.find_element(By.CLASS_NAME, 'pagination')
     pagina_ul = pagina_div.find_element(By.TAG_NAME, 'ul')
     paginas = pagina_ul.find_elements(By.TAG_NAME, 'li')
@@ -133,5 +130,7 @@ def Scraper():
         Extrair_dados_aps()
 
     print('\nVarredura completa! ✅\n')
+
+    navegador.quit()
 
     return aps_dados

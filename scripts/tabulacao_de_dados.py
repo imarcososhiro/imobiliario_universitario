@@ -1,12 +1,9 @@
 import pandas as pd
-from scripts.web_scraping import *
 
-# Pt. 1 - Limpando e formatando dados brutos
+# Limpando e formatando dados brutos
 # Eliminando itens desnecessários (ex: valor de venda do imóvel), e formatando valores (ex: RS 700,00 -str- para 700 -int-)
 
-
-def Dataset():
-    aps_dados = Scraper()
+def Dataset(aps_dados):
     aps_dados_atualizado = []
 
     nome_linhas = ['Aluguel', 'Total / Mês', 'Condomínio', 'C. Bonificação', 'IPTU', 'Dormitórios', 'POR: Aluguel']
@@ -40,25 +37,9 @@ def Dataset():
             else:
                 lista_tuplas.append((categoria, info))
 
-        aps_dados_atualizado.append(lista_tuplas)
+        aps_dados_atualizado.append(dict(lista_tuplas))
 
-    # Formatando tudo para o formato ideal para criação de um DataFrame (lista de dicionários)
-    aps = []
+    df = pd.DataFrame(aps_dados_atualizado)
+    return df[['Bairro','Total / Mês','Dormitórios']] # Ainda to em dúvida se vou usar os dados de Condomínio, IPTU, C. Bonificação
 
-    for item in aps_dados_atualizado:
-        aps.append(dict(item))
 
-    df = pd.DataFrame(aps)
-
-    return df.to_string()
-
-'''
-
-** Planejamento de filtros e dados **
-
-- Média aluguel/bairro (/faixa de preço, /nº de dormitórios) 
-- Nº de imóveis/bairro (/faixa de preço,/nº de dormitórios)
-- Maior valor/bairro (/nº de dormitórios)
-- Menor valor/bairro (/nº de dormitórios)
-
-'''
