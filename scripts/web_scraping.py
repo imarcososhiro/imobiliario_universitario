@@ -131,9 +131,6 @@ def Scraper():
 
     print('\nVarredura completa! ✅\n')
 
-<<<<<<< HEAD
     navegador.quit()
 
-=======
->>>>>>> 849bab09a8f1eed1c66580409ddb198fc28ff258
     return aps_dados
