@@ -5,10 +5,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 import time
 
-servico = Service(ChromeDriverManager().install())
-navegador = webdriver.Chrome(service=servico)
-
 def Scraper():
+
+    servico = Service(ChromeDriverManager().install())
+    navegador = webdriver.Chrome(service=servico)
+
     # Pt. 1 - Filtrando apartamentos
 
     navegador.get('https://www.cardinali.com.br/pesquisa-de-imoveis/')
@@ -53,7 +54,14 @@ def Scraper():
     bairro = navegador.find_element(By.XPATH, '//*[@id="pesquisa_imoveis"]/div[3]/div[5]/div')
     bairro_tag_select = bairro.find_element(By.TAG_NAME, 'select')
     bairro_select = Select(bairro_tag_select)
-    bairro_select.select_by_value('16743') #Centro 1 - só pra teste, tirar dps
+    bairro_select.select_by_value('5704') # Centro 1 - só pra teste, tirar dps
+    #bairro_select.select_by_value('16743') # Centro 2
+    #bairro_select.select_by_value('16859') # Jardim Lutfalla
+    #bairro_select.select_by_value('4171')  # Cidade Jardim
+    #bairro_select.select_by_value('4146')  # Vila Monteiro (Gleba I)
+    #bairro_select.select_by_value('1615')  # Vila Costa do Sol
+
+
 
     # Confirmar filtro
     navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
