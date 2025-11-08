@@ -5,8 +5,15 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 import time
 
-def Scraper():
+'''
+Melhoras a serem feitas:
+- Abrir mais de uma aba por vez
+- Implementar Expected conditions
+- Rodar em segundo plano
+- Parar de carregar imagens
+'''
 
+def Scraper():
     servico = Service(ChromeDriverManager().install())
     navegador = webdriver.Chrome(service=servico)
 
@@ -54,12 +61,12 @@ def Scraper():
     bairro = navegador.find_element(By.XPATH, '//*[@id="pesquisa_imoveis"]/div[3]/div[5]/div')
     bairro_tag_select = bairro.find_element(By.TAG_NAME, 'select')
     bairro_select = Select(bairro_tag_select)
-    bairro_select.select_by_value('5704') # Centro 1 - só pra teste, tirar dps
+    #bairro_select.select_by_value('5704') # Centro 1 - só pra teste, tirar dps
     #bairro_select.select_by_value('16743') # Centro 2
     #bairro_select.select_by_value('16859') # Jardim Lutfalla
     #bairro_select.select_by_value('4171')  # Cidade Jardim
     #bairro_select.select_by_value('4146')  # Vila Monteiro (Gleba I)
-    #bairro_select.select_by_value('1615')  # Vila Costa do Sol
+    bairro_select.select_by_value('1615')  # Vila Costa do Sol
 
 
 
@@ -91,13 +98,23 @@ def Scraper():
             valores_agrupados = navegador.find_element(By.ID, 'valores_imovel')
             valores = valores_agrupados.find_elements(By.XPATH, './div')
             especificacoes = []
+            especificacoes.append(('id', c))
             especificacoes.append(('Bairro', bairro))
+            categorias = ['C. Bonificação', 'Condomínio', 'IPTU', 'Total / Mês']
             for valor in valores:
-                if 'Imóvel' in valor.text or 'ITBI' in valor.text or 'Consulte-nos' in valor.text: # Ignorando linhas sem dados relevantes
-                    continue
+                categoria, valor = map(str, valor.text.split('\n'))
+                if categoria in categorias:
+                    if categoria == 'C. Bonificação':
+                        categoria = 'Aluguel com bonificação'
+                    pass
+                elif 'POR:' in categoria:
+                    categoria = 'Aluguel'
+                elif 'Aluguel' == categoria:
+                    pass
                 else:
-                    categoria, valor = map(str, valor.text.split('\n'))
-                    especificacoes.append((categoria, valor))
+                    continue
+                especificacoes.append((categoria, valor))
+
             dormitorios = navegador.find_element(By.XPATH, '/html/body/main/section[2]/div/div[1]/div[5]/div/div[3]/div/div').text
             especificacoes.append(('Dormitórios', dormitorios))
             aps_dados.append(especificacoes)
@@ -142,3 +159,4 @@ def Scraper():
     navegador.quit()
 
     return aps_dados
+
