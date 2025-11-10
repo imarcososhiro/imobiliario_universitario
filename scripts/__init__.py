@@ -1,1 +1,0 @@
-#script pro streamlit entender que tem código nessa pasta pq por algum motivo ele não tava reconhecendo?

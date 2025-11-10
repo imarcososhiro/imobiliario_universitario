@@ -8,6 +8,7 @@ coordenadas_bairros = {
     'Jardim Macarengo': (-22.00801536715194, -47.88837433633512),
     'Vila Costa do Sol': (-22.002575046600796, -47.883635416847206),
     'Vila Monteiro (Gleba I)': (-22.02544671109399, -47.88954201742408),
+    'Vila Monteiro Gleba I' : (-22.02544671109399, -47.88954201742408)
 
 }
 

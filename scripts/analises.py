@@ -29,7 +29,6 @@ def Tirar_infos_bairros(df_filtrado):
     # Puxando a latitide e longitude de cada bairro pela função no script coords_bairros.py, separa latitude e longitude, e guarda em lista
     lat_bairros = []
     lon_bairros = []
-    print(df_infos['Bairro'])
     for bairro in df_infos['Bairro']:
         lat,lon = Buscar_coords(bairro)
         lat_bairros.append(lat)

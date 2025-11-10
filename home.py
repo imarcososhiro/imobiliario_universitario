@@ -8,7 +8,7 @@ from scripts.analises import Tirar_infos_bairros # Temporário
 
 st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
 
-st.title('Imóveis de perfil universitário')
+st.title('IMÓVEIS DE PERFIL UNIVERSITÁRIO')
 st.subheader('USP São Carlos - Campus I')
 
 @st.cache_data # Comando para fazer o cache do banco de dados coletado e filtrado (para não ficar chamando a função varias vezes pra cada filtro)
@@ -16,29 +16,25 @@ def carregar_dados():
     dados_limpos = Dataset(Scraper())
     return dados_limpos
 
-try:
-    # Banco de dados principal
-    df_principal = carregar_dados()
-except:
-    st.write('Por favor, deixe o scraper rodar para inicializar a aplicação. Tente novamente.')
+df_principal = carregar_dados()
 
 # Função que exibe métricas de média, mediana e quantidade de apartamentos
-def exibir_metricas(df_principal):
+def exibir_metricas(df_filtrado):
     # Criando métricas
-    titulo_metrica1 = 'Média'
-    media_geral = df_principal['Total / Mês'].mean()
+    titulo_metrica1 = 'Média geral'
+    media_geral = df_filtrado['Total / Mês'].mean()
 
     titulo_metrica2 = 'Quantidade de apartamentos'
-    qtde_aps = df_principal['Total / Mês'].count()
+    qtde_aps = df_filtrado['Total / Mês'].count()
 
-    titulo_metrica3 = 'Mediana'
-    mediana_geral = df_principal['Total / Mês'].median()
+    titulo_metrica3 = 'Mediana geral'
+    mediana_geral = df_filtrado['Total / Mês'].median()
 
     titulo_metrica4 = 'Valor mínimo'
-    valor_minimo = df_principal['Total / Mês'].min()
+    valor_minimo = df_filtrado['Total / Mês'].min()
 
     titulo_metrica5 = 'Valor máximo'
-    valor_maximo = df_principal['Total / Mês'].max()
+    valor_maximo = df_filtrado['Total / Mês'].max()
 
     # Exibindo métricas em colunas
     col1,col2,col3 = st.columns(3)
@@ -59,56 +55,90 @@ def exibir_metricas(df_principal):
 
 
 # Criando filtros
-def exibir_slider_val(df_principal):
+# Exibe o layout de filtro de preço, e recebe o filtro do usuário
+def Intervalo_Slider():
     range_min = df_principal['Total / Mês'].min()
     range_max = df_principal['Total / Mês'].max()
-    intervalo = st.sidebar.slider('Selecione um intervalo',
+    range_slider = st.sidebar.slider('Selecione um intervalo',
                           range_min, range_max,
                           value=(range_min, range_max)
                           )
-    return intervalo
+    return range_slider
 
-def exibir_radio_dorm(df_principal):
+# Exibe o layout de filtro de dormitórios, e recebe o filtro do usuário
+def Dormitorios_num():
     dormitorios = df_principal['Dormitórios'].unique()
-    n_dormitorios = st.sidebar.segmented_control(
+    numero_dormitorios = st.sidebar.segmented_control(
     "Número de dormitórios", sorted(dormitorios), selection_mode="multi"
     )
-    return n_dormitorios
+    return numero_dormitorios
 
-def exibir_opcoes_analise(df_principal):
-    analise = st.sidebar.radio(
+# Exibe o layout de filtro de análise, e recebe o filtro do usuário
+def Analise_Escolhida():
+    analise_escolhida = st.sidebar.radio(
         "Filtrar cores por",
         ('Média de preço', 'Oferta de apartamentos')
     )
-    if analise == 'Média de preço':
-        analise = 'Media'
-    elif analise == 'Oferta de apartamentos':
-        analise = 'Quantidade'
-    return analise
+    if analise_escolhida == 'Média de preço':
+        analise_escolhida = 'Media' #nome da coluna que existe no df
+    elif analise_escolhida == 'Oferta de apartamentos':
+        analise_escolhida = 'Quantidade' #nome da coluna que existe no df
+    return analise_escolhida
 
-analise = exibir_opcoes_analise(df_principal)
-n_dormitorios = exibir_radio_dorm(df_principal)
-intervalo = exibir_slider_val(df_principal)
+# Layout da exibição da tabela com a listagem dos apartamentos por bairro
+def exibir_tabelas_bairros(df_filtro):
+    opcoes = st.selectbox(
+        'Selecione o bairro',
+        [''] + list(df_filtro['Bairro'].unique())
+    )
+    # Exibir nada inicialmente
+    if opcoes == '':
+        return ''
+    else:
+        filtro = df_filtro[df_filtro['Bairro'] == opcoes] #Listar dados só do bairro escolhido
+        st.write("Dados dos apartamentos em:", opcoes)
+        return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
+
+analise = Analise_Escolhida()
+n_dormitorios = Dormitorios_num()
+intervalo = Intervalo_Slider()
 
 # Aplicando filtros no banco de dados e printando mapa
+
+# Se tiver filtro de dormitório, filtra por preço e dormitório
 if len(n_dormitorios) > 0:
-    df_principal = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0]) & (df_principal['Dormitórios'].isin(n_dormitorios))]
+    df_filtrado = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0]) & (df_principal['Dormitórios'].isin(n_dormitorios))]
+# Se não tiver, filtra só por preço
 else:
-    df_principal = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0])]
+    df_filtrado = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0])]
 
-df_info = Tirar_infos_bairros(df_principal) # Métricas tiradas pelo filtro
-mapa = Criar_Mapa(df_info, analise) # Criando mapa
+df_info = Tirar_infos_bairros(df_filtrado) # Produz um dataframe de métricas gerais (Média, mediana, valor mín, max, etc), conforme o filtro aplicado pelo usuário
+mapa = Criar_Mapa(df_info, analise) # Cria o mapa a partir dessas métricas
 
-# Estrutura try/except pra se não tiver apartamento com algum filtro, não dar erro
-
+# Estrutura try/except pra se não tiver apartamento com algum filtro, não imprimir erro na exibição do mapa
 try:
-    exibir_metricas(df_principal)
+    # Exibir as métricas e o mapa gerado, conforme os filtros
+    exibir_metricas(df_filtrado)
     mapa_st = st_folium(
             mapa,
             width=850,
             height=450,
             )
-
 except:
-    st.write('Não há apartamentos com esses filtros') #Vou mudar pra algo engraçadinho dps
+    st.write('Sem apartamentos')
+
+# Estrutura try/except pra se não tiver apartamento com algum filtro, não imprimir erro na listagem de dataframe
+
+#Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
+try:
+    st.subheader('Detalhamento')
+    st.dataframe(
+        exibir_tabelas_bairros(df_filtrado),
+        column_config={
+            'Link': st.column_config.LinkColumn('Link',
+            display_text='Ver Anúncio')
+        }
+    )
+except:
+    pass
 
