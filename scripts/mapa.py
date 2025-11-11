@@ -80,13 +80,14 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
         location=(-22.006213906979283, -47.89752552863632),
         icon=icone_usp_mapa,
         popup=f"""
-            <h4 style='margin-bottom:5px;>USP CAASO</h4>'"""
+            <h4 style='margin-bottom:5px;>USP CAASO</h4>'""",
+        tooltip='Universidade de São Paulo (USP)'
     ).add_to(mapa)
 
     icone_ufscar = 'ufscar-logo.png'
     icone_ufscar_mapa = folium.CustomIcon(
         icon_image=icone_ufscar,
-        icon_size=(70, 70),
+        icon_size=(90, 90),
         icon_anchor=(40, 23),
         popup_anchor=(0, 0)
     )
@@ -95,7 +96,8 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
         location=(-21.982364333434838, -47.87966644394043),
         icon=icone_ufscar_mapa,
         popup=f"""
-                <h4 style='margin-bottom:5px;>UFSCar</h4>'"""
+                <h4 style='margin-bottom:5px;>UFSCar</h4>'""",
+        tooltip='Universidade Federal de São Carlos (UFSCar)'
     ).add_to(mapa)
     #mapa.save('mapa.html')
     #webbrowser.open('mapa.html') #Comandos pra teste do script também
@@ -103,7 +105,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     icone_rodoviaria = 'icone-rodoviaria.png'
     icone_rodoviaria_mapa = folium.CustomIcon(
         icon_image=icone_rodoviaria,
-        icon_size=(23, 23),
+        icon_size=(30, 30),
         icon_anchor=(40, 23),
         popup_anchor=(0, 0)
     )

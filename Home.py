@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_folium import st_folium
 import pandas as pd
+import csv
 from scripts.tabulacao_de_dados import Dataset
 from scripts.web_scraping import Scraper
 from scripts.mapa import Criar_Mapa
@@ -8,15 +9,21 @@ from scripts.analises import Tirar_infos_bairros # Temporário
 
 st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
 
-st.title('IMÓVEIS DE PERFIL UNIVERSITÁRIO')
-st.subheader('USP São Carlos - Campus I')
+st.title('Imóveis de perfil universitário')
+st.subheader('São Carlos - SP')
 
-@st.cache_data # Comando para fazer o cache do banco de dados coletado e filtrado (para não ficar chamando a função varias vezes pra cada filtro)
-def carregar_dados():
-    dados_limpos = Dataset(Scraper())
-    return dados_limpos
+#Cria o botão para o user atualizar o
+botao_scrap = st.button('Atualizar o banco de dados', type='primary')
 
-df_principal = carregar_dados()
+#O programa sempre vai ler os dados do arquivo csv
+df_principal = pd.read_csv('dados.csv')
+
+# Se o user apertar o botão, o scraper é chamado, e os dados são atualizados, e o csv antigo é substituido
+if botao_scrap:
+    st.write('⏳ Rodando o Scraper... isso pode levar em torno de 5 minutos.')
+    st.write('•   Você pode utilizar o dashboard enquanto isso. Verifique o andamento da atualização no seu terminal.')
+    df_principal = Dataset(Scraper())
+    df_principal.to_csv('dados.csv', index=False)
 
 # Função que exibe métricas de média, mediana e quantidade de apartamentos
 def exibir_metricas(df_filtrado):
@@ -89,11 +96,11 @@ def Analise_Escolhida():
 def exibir_tabelas_bairros(df_filtro):
     opcoes = st.selectbox(
         'Selecione o bairro',
-        [''] + list(df_filtro['Bairro'].unique())
+        ['Todos'] + list(df_filtro['Bairro'].unique())
     )
     # Exibir nada inicialmente
-    if opcoes == '':
-        return ''
+    if opcoes == 'Todos':
+        return df_principal[['Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
     else:
         filtro = df_filtro[df_filtro['Bairro'] == opcoes] #Listar dados só do bairro escolhido
         st.write("Dados dos apartamentos em:", opcoes)
@@ -115,7 +122,7 @@ else:
 df_info = Tirar_infos_bairros(df_filtrado) # Produz um dataframe de métricas gerais (Média, mediana, valor mín, max, etc), conforme o filtro aplicado pelo usuário
 mapa = Criar_Mapa(df_info, analise) # Cria o mapa a partir dessas métricas
 
-# Estrutura try/except pra se não tiver apartamento com algum filtro, não imprimir erro na exibição do mapa
+# Estruturas try/except pra se não tiver apartamento com algum filtro, não imprimir erro
 try:
     # Exibir as métricas e o mapa gerado, conforme os filtros
     exibir_metricas(df_filtrado)
@@ -127,11 +134,11 @@ try:
 except:
     st.write('Sem apartamentos')
 
-# Estrutura try/except pra se não tiver apartamento com algum filtro, não imprimir erro na listagem de dataframe
-
-#Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
 try:
+    # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
     st.subheader('Detalhamento')
+    # column_config pra fazer a URL virar hiperlink,
+    # display_text pra encurtar a URL
     st.dataframe(
         exibir_tabelas_bairros(df_filtrado),
         column_config={
