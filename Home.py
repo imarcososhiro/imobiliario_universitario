@@ -1,8 +1,6 @@
 import streamlit as st
 import streamlit_folium
 import pandas as pd
-from scripts.tabulacao_de_dados import Dataset
-from scripts.web_scraping import Scraper
 from scripts.mapa import Criar_Mapa
 from scripts.analises import Tirar_infos_bairros # Temporário
 import os
@@ -13,25 +11,15 @@ st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da pági
 st.title('Imóveis de perfil universitário')
 st.subheader('São Carlos - SP')
 
-#O programa sempre vai ler os dados do arquivo csv
-df_principal = pd.read_csv('dados.csv')
+#Lendo dados do arquivo csv diariamente atualizado
+caminho_csv = os.path.join("dados", "dados_imoveis.csv")
+df_principal = pd.read_csv(caminho_csv)
 
 #Puxando a data da ultima modificação do csv
-timestamp = os.path.getmtime('dados.csv')
+timestamp = os.path.getmtime(caminho_csv)
 ultima_modificacao = datetime.fromtimestamp(timestamp)
 
 st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y %H:%M:%S')}')
-
-#Cria o botão para o user atualizar o banco de dados
-botao_scrap = st.button('Atualizar o banco de dados', type='primary')
-
-
-# Se o user apertar o botão, o scraper é chamado, e os dados são atualizados, e o csv antigo é substituido
-if botao_scrap:
-    st.write('⏳ Rodando o Scraper... isso pode levar em torno de 5 minutos.')
-    st.write('•   Você pode utilizar o dashboard enquanto isso. Verifique o andamento da atualização no seu terminal.')
-    df_principal = Dataset(Scraper())
-    df_principal.to_csv('dados.csv', index=False)
 
 # Função que exibe métricas de média, mediana e quantidade de apartamentos
 def exibir_metricas(df_filtrado):

@@ -6,11 +6,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+import pandas as pd
+import os
 
-# Settings pra fazer o scraper rodar em segundo plano
+# Settings pra fazer o scraper rodar em segundo plano no github actions
 chrome_options = Options()
 chrome_options.page_load_strategy = 'eager'
-chrome_options.add_argument("--headless")
+chrome_options.add_argument("--headless=new")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920,1080")
 chrome_options.add_experimental_option("prefs", {"profile.managed_default_settings.images": 2})
 chrome_options.add_argument('--log-level=3')
 
@@ -29,7 +35,7 @@ def Scraper():
     botao_pesquisa = espera.until(EC.element_to_be_clickable((By.XPATH, '/html/body/main/section/div/div[1]/div[1]/button')))
     botao_pesquisa.click()
 
-    print('✔️  Filtrando apartamentos')
+    print('✔️ Filtrando apartamentos')
 
     # Selecionar Locação
     operacao = espera.until(EC.element_to_be_clickable((By.TAG_NAME, 'select')))
@@ -102,7 +108,7 @@ def Scraper():
     bairro_select.select_by_value('3777')  # Jardim Jockey Clube
     bairro_select.select_by_value('17341')  # Jardim Jockei Club
     bairro_select.select_by_value('394')  # Parque Espraiado
-
+    
     # Confirmar filtro
     navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
 
@@ -116,7 +122,6 @@ def Scraper():
     def Pegando_links_aps():
         lista_links_aps = []
 
-        links_gerais = navegador.find_elements(By.TAG_NAME, 'a')
         container = navegador.find_elements(By.CLASS_NAME, 'container')
         links_aps = container[1].find_elements(By.TAG_NAME, 'a')
         for site in links_aps:
@@ -160,11 +165,11 @@ def Scraper():
     texto_imoveis = navegador.find_element(By.XPATH, '/html/body/main/section/div/h1').text
     quantidade_imoveis = texto_imoveis.split(' ')[0]
 
-    print(f'\n✔️  {quantidade_imoveis} imóveis encontrados')
+    print(f'\n✔️ {quantidade_imoveis} imóveis encontrados')
 
     print('\nOBS: Nem todos os apartamentos coletados serão listados no mapa, pois, o site só conta com filtro de\nvalor de Aluguel e, consequentemente, alguns imóveis ultrapassam o valor de R$ 3000 quando somado o Aluguel ao Condomínio e IPTU.\n')
 
-    print('Começando extração dos dados...\n')
+    print('✔️ Começando extração dos dados...\n')
     # loop para extração de dados dos apartamentos
     while True:
         #Pegando o link da próxima vitrine
@@ -198,4 +203,41 @@ def Scraper():
 
     navegador.quit()
 
-    return aps_dados
+    #Função que pega o Dataset bruto do Scraper e faz a limpeza dos dados
+    def Limpar_Dados(apartamentos):
+        aps_dados_limpos = []
+
+        # Formatando a vírgula e o tipo dos números, e o nome dos bairros
+        for dados in apartamentos:
+            lista_tuplas = []
+
+            for categoria, info in dados:
+                # Transformando os preços em floats
+                if categoria == 'Total / Mês':
+                    info = info.replace('.', '')
+                    info = info.replace(',', '.')
+                    info = float(info)
+
+                # Transformando o nº de dormitórios em ints
+                elif categoria == 'Dormitórios':
+                    info = int(info)
+
+                lista_tuplas.append((categoria, info))
+
+            aps_dados_limpos.append(dict(lista_tuplas))
+
+        df = pd.DataFrame(aps_dados_limpos)
+        # Preço limite dos aps = R$ 3000
+        return df[df['Total / Mês'] <= 3000]
+
+    #Dados limpos
+    df_final = Limpar_Dados(aps_dados)
+
+    # Salvando Dataset em csv
+    output_dir = os.path.join(os.path.dirname(__file__), '..', 'dados')
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, 'dados_imoveis.csv')
+
+    df_final.to_csv(output_path, index=False)
+
+Scraper()

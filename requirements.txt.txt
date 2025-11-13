@@ -1,7 +1,0 @@
-streamlit
-streamlit-folium
-pandas
-folium
-branca
-selenium
-webdriver-manager
