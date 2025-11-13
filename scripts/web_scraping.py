@@ -73,11 +73,11 @@ def Scraper():
     # Filtrar pelos bairros - adicionar mais depois
     bairro_id = navegador.find_element(By.ID,'id_bairro')
     bairro_select = Select(bairro_id)
-    bairro_select.select_by_value('5704') # Centro 1 - só pra teste, tirar dps
-    bairro_select.select_by_value('16743') # Centro 2
+    #bairro_select.select_by_value('16743') # Centro
     bairro_select.select_by_value('16859')  # Jardim Lutfalla
     bairro_select.select_by_value('4171')  # Cidade Jardim
     bairro_select.select_by_value('4146')  # Vila Monteiro (Gleba I)
+    '''
     bairro_select.select_by_value('1690')  # Vila Monteiro Gleba I
     bairro_select.select_by_value('802')  # Jardim Paulistano
     bairro_select.select_by_value('793')  # Jardim Paraíso
@@ -108,7 +108,7 @@ def Scraper():
     bairro_select.select_by_value('3777')  # Jardim Jockey Clube
     bairro_select.select_by_value('17341')  # Jardim Jockei Club
     bairro_select.select_by_value('394')  # Parque Espraiado
-
+    '''
     # Confirmar filtro
     navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
 

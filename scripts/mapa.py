@@ -44,7 +44,6 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
             fill_color=escala_cores(info_cor),
             fill_opacity=0.8,
             opacity=1,
-            popup=bairro,
             tooltip=html,
         ).add_to(mapa)
 
@@ -78,8 +77,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     folium.Marker(
         location=(-22.006213906979283, -47.89752552863632),
         icon=icone_usp_mapa,
-        popup=f"""
-            <h4 style='margin-bottom:5px;>USP CAASO</h4>'""",
+        popup='USP CAASO',
         tooltip='Universidade de São Paulo (USP)'
     ).add_to(mapa)
 
@@ -94,8 +92,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     folium.Marker(
         location=(-21.982364333434838, -47.87966644394043),
         icon=icone_ufscar_mapa,
-        popup=f"""
-                <h4 style='margin-bottom:5px;>UFSCar</h4>'""",
+        popup='UFSCar',
         tooltip='Universidade Federal de São Carlos (UFSCar)'
     ).add_to(mapa)
     #mapa.save('mapa.html')
