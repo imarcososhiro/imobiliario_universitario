@@ -135,31 +135,33 @@ def Scraper():
     # Função que extrai os dados dos apartamentos a partir da página específica deles
     def Extrair_dados_aps(bairro, link):
         nonlocal aps_dados
+        try:
+            valores_agrupados = navegador.find_element(By.ID, 'valores_imovel')
+            valores = valores_agrupados.find_elements(By.XPATH, './div')
+            especificacoes = []
+            especificacoes.append(('Bairro', bairro))
+            especificacoes.append(('Link', link))
+            categorias = ['C. Bonificação', 'Condomínio', 'IPTU', 'Total / Mês']
+            for valor in valores:
+                categoria, valor = map(str, valor.text.split('\n'))
+                if categoria in categorias:
+                    if categoria == 'C. Bonificação':
+                        categoria = 'Aluguel com Bonificação'
+                    pass
+                elif 'POR:' in categoria:
+                    categoria = 'Aluguel Cheio'
+                elif 'Aluguel' == categoria:
+                    categoria = 'Aluguel Cheio'
+                else:
+                    continue
+                especificacoes.append((categoria, valor))
 
-        valores_agrupados = navegador.find_element(By.ID, 'valores_imovel')
-        valores = valores_agrupados.find_elements(By.XPATH, './div')
-        especificacoes = []
-        especificacoes.append(('Bairro', bairro))
-        especificacoes.append(('Link', link))
-        categorias = ['C. Bonificação', 'Condomínio', 'IPTU', 'Total / Mês']
-        for valor in valores:
-            categoria, valor = map(str, valor.text.split('\n'))
-            if categoria in categorias:
-                if categoria == 'C. Bonificação':
-                    categoria = 'Aluguel com Bonificação'
-                pass
-            elif 'POR:' in categoria:
-                categoria = 'Aluguel Cheio'
-            elif 'Aluguel' == categoria:
-                categoria = 'Aluguel Cheio'
-            else:
-                continue
-            especificacoes.append((categoria, valor))
-
-        dormitorios = navegador.find_element(By.XPATH, '/html/body/main/section[2]/div/div[1]/div[5]/div/div[3]/div/div').text
-        especificacoes.append(('Dormitórios', dormitorios))
-        aps_dados.append(especificacoes)
-
+            dormitorios = navegador.find_element(By.XPATH, '/html/body/main/section[2]/div/div[1]/div[5]/div/div[3]/div/div').text
+            especificacoes.append(('Dormitórios', dormitorios))
+            aps_dados.append(especificacoes)
+        except:
+            pass
+    
     # Pegando quantidade de imóveis encontrados
     texto_imoveis = navegador.find_element(By.XPATH, '/html/body/main/section/div/h1').text
     quantidade_imoveis = texto_imoveis.split(' ')[0]
