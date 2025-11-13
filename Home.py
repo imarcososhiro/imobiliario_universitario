@@ -12,7 +12,8 @@ st.title('Imóveis de perfil universitário')
 st.subheader('São Carlos - SP')
 
 #Lendo dados do arquivo csv diariamente atualizado
-caminho_csv = os.path.join("dados", "dados_imoveis.csv")
+diretorio_atual = os.path.dirname(__file__)
+caminho_csv = os.path.join(diretorio_atual,"dados", "dados_imoveis.csv")
 df_principal = pd.read_csv(caminho_csv)
 
 #Puxando a data da ultima modificação do csv

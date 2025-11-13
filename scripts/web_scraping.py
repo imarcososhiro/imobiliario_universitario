@@ -108,7 +108,7 @@ def Scraper():
     bairro_select.select_by_value('3777')  # Jardim Jockey Clube
     bairro_select.select_by_value('17341')  # Jardim Jockei Club
     bairro_select.select_by_value('394')  # Parque Espraiado
-    
+
     # Confirmar filtro
     navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
 
