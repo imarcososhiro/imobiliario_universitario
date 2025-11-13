@@ -1,4 +1,6 @@
 Bairro,Link,Aluguel Cheio,Aluguel com Bonificação,Condomínio,IPTU,Total / Mês,Dormitórios
+Jardim Paulistano,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paulistano/235710,"1.390,00","1.112,00","267,55","45,47",1425.02,1
+Vila Monteiro Gleba I,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Monteiro-Gleba-I/235677,"1.528,75","1.223,00","400,00","93,79",1716.79,2
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/235595,"2.917,50","2.334,00","350,00","50,00",2734.0,1
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/235586,"1.667,50","1.334,00","235,00","35,00",1604.0,1
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/235536,"1.945,00","1.556,00","420,00",,1976.0,1
@@ -39,9 +41,7 @@ Parque Arnold Schimidt,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamen
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/233984,"2.931,25","2.345,00","401,00","80,00",2826.0,1
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/233983,"2.083,75","1.667,00","365,00","45,00",2077.0,1
 Parque Arnold Schimidt,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/233974,"2.875,00","2.300,00","401,99",,2701.99,1
-Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/233814,"2.361,25","1.889,00","370,00",,2259.0,2
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/210977,"1.806,25","1.445,00","405,52","39,00",1889.52,1
-Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/210881,"2.812,50","2.250,00","300,00","90,00",2640.0,2
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/210832,"1.390,00","1.112,00","420,00",,1532.0,1
 Parque Santa Monica,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Parque-Santa-Monica/210781,"2.361,25","1.889,00","450,00","90,00",2429.0,3
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/210657,"1.625,00","1.300,00","208,21","28,04",1536.25,1
@@ -79,7 +79,6 @@ Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/205958,"1.529,04","1.223,23","250,00","90,00",1563.23,1
 Vila Monteiro Gleba I,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Kitchnet/Vila-Monteiro-Gleba-I/205789,"962,50","770,00","93,00",,863.0,1
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/205353,"2.626,25","2.101,00","558,76","116,00",2775.76,3
-Jardim Santa Paula,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/204823,"1.875,00","1.500,00","429,00","95,00",2024.0,2
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/204782,"2.237,50","1.790,00","395,00","70,00",2255.0,2
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/204733,"2.083,75","1.667,00","570,00","120,00",2357.0,2
 Jardim Macarengo,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Macarengo/204184,"3.056,25","2.445,00","378,00","100,00",2923.0,3
@@ -87,8 +86,8 @@ Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/
 Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/203267,"2.222,50","1.778,00","480,20","78,05",2336.25,2
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/203158,"1.306,25","1.045,00","209,00",,1254.0,1
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/203045,"2.186,25","1.749,00","288,25","74,56",2111.81,1
-Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/202952,"2.778,75","2.223,00","301,11",,2524.11,1
-Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/202714,"2.361,25","1.889,00","416,00","49,00",2354.0,1
+Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/202952,"1.778,00",,"301,11",,2079.11,1
+Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/202714,"1.511,20",,"416,00","49,00",1976.2,1
 Cidade Jardim,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/202488,"2.778,75","2.223,00","250,00",,2473.0,2
 Jardim Hikare,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Hikare/202240,"1.390,00","1.112,00","350,00","35,00",1497.0,2
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Kitchnet/Parque-Arnold-Schimidt/201900,"1.062,50","850,00",,"36,00",886.0,1
@@ -155,6 +154,7 @@ Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/113382,"2.500,00","2.000,00","285,00","50,00",2335.0,2
 Parque Santa Monica,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Santa-Monica/112740,"1.687,50","1.350,00","441,00","68,00",1859.0,2
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/112575,"3.750,00","3.000,00",,,3000.0,1
+Vila Monteiro Gleba I,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Monteiro-Gleba-I/112569,"1.945,00","1.556,00","180,00","50,00",1786.0,1
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/112222,"1.737,50","1.390,00","235,00","25,00",1650.0,1
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/111126,"1.667,50","1.334,00","420,00",,1754.0,1
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/111083,"2.437,50","1.950,00","219,00","101,44",2270.44,1
@@ -191,7 +191,6 @@ Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Pa
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Kitchnet-com-Condominio/Jardim-Paraiso/104694,"1.388,75","1.111,00","300,00",,1411.0,1
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/104647,"1.875,00","1.500,00","235,00","92,50",1827.5,2
 Vila Monteiro Gleba I,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Kitchnet/Vila-Monteiro-Gleba-I/104026,"2.500,00","2.000,00",,,2000.0,1
-Jardim Paraiso,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/102760,"1.125,00","900,00","212,00","49,00",1161.0,1
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/102727,"2.361,25","1.889,00","342,00","85,00",2316.0,2
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/101746,"2.500,00","2.000,00",,,2000.0,2
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/100405,"1.687,50","1.350,00","350,00","98,73",1798.73,1
@@ -200,7 +199,7 @@ Jardim Bandeirantes,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/P
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/99763,"2.187,50","1.750,00","276,68","72,00",2098.68,2
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/99718,"2.287,50","1.830,00","342,00","89,00",2261.0,2
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/98407,"1.600,00",,"348,36","84,82",2033.18,2
-Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/98332,"972,50","778,00","250,00","52,00",1080.0,1
+Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/98332,"1.111,25","889,00","310,00","52,00",1251.0,1
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/88582,"2.445,00",,"400,00","90,00",2935.0,2
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Kitchnet/Centro/85429,"1.562,50","1.250,00",,,1250.0,2
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/84952,"2.778,75","2.223,00","320,00","76,00",2619.0,1
@@ -223,7 +222,6 @@ Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/
 Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/60511,"1.528,75","1.223,00","235,00","78,06",1536.06,2
 Vila Celina,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Celina/60331,"1.111,25","889,00","460,00",,1349.0,1
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/60205,"2.500,00","2.000,00",,,2000.0,1
-Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/59935,"1.528,75","1.223,00","750,00","68,29",2041.29,2
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/58759,"1.140,00","912,00",,"50,95",962.95,1
 Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/58543,"1.445,00",,"248,69","50,02",1743.71,1
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/58420,"1.390,00","1.112,00","400,00","50,70",1562.7,2
@@ -248,6 +246,7 @@ Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/
 Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/39253,"1.500,00",,"440,00","100,00",2040.0,2
 Jardim Paraiso,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/39196,"1.861,25","1.489,00","200,00","60,00",1749.0,2
 Parque Arnold Schimidt,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/39124,"1.667,50","1.334,00","390,00","86,00",1810.0,2
+Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/38662,"1.042,50","834,00","400,00","65,00",1299.0,2
 Jardim Paraiso,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/38035,"1.667,50","1.334,00","420,00","70,00",1824.0,2
 Jardim Santa Paula,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/37846,"1.181,25","945,00","240,75","29,00",1214.75,1
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/37513,"1.528,75","1.223,00","950,00","80,00",2253.0,4
@@ -263,7 +262,7 @@ Jardim Paraiso,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/32842,"2.153,75","1.723,00","395,00","76,00",2194.0,1
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/31459,"2.917,50","2.334,00","490,00","100,52",2924.52,2
 Parque Santa Monica,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Santa-Monica/31303,"1.500,00","1.200,00","432,00","75,41",1707.41,2
-Parque Santa Monica,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Santa-Monica/28633,"2.037,50","1.630,00","420,00","68,00",2118.0,2
+Parque Santa Monica,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Santa-Monica/28633,"1.304,00",,"420,00","68,00",1792.0,2
 Vila Marina,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Marina/28567,"1.528,75","1.223,00","214,00","57,00",1494.0,1
 Vila Marina,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Marina/28564,"1.528,75","1.223,00","214,00","57,00",1494.0,1
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/27388,"1.320,00","1.056,00","234,00","46,00",1336.0,1
@@ -273,11 +272,11 @@ Parque Santa Monica,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/
 Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/21967,"2.083,75","1.667,00","430,21","46,12",2143.33,2
 Centro,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/21922,"2.000,00","1.600,00","500,00","22,58",2122.58,3
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/20890,"1.806,25","1.445,00","311,08","102,24",1858.32,1
+Jardim Lutfalla,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/14575,"1.528,75","1.223,00","90,00","53,51",1366.51,1
 Centro,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/9430,"972,50","778,00","430,00","78,00",1286.0,2
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/3034,"1.500,00","1.200,00","200,00","96,00",1496.0,2
 Vila Monteiro Gleba I,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Monteiro-Gleba-I/2512,"2.062,50","1.650,00","300,00","82,18",2032.18,2
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/2227,"1.528,75","1.223,00","376,32","54,83",1654.15,1
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/1729,"1.042,50","834,00",,,834.0,1
-Jardim Alvorada,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Alvorada/739,"2.222,50","1.778,00","245,00","59,15",2082.15,2
 Cidade Jardim,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/463,"1.945,00","1.556,00","583,00","19,24",2158.24,1
 Jardim Alvorada,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Alvorada/115,"2.750,00","2.200,00","359,00",,2559.0,2

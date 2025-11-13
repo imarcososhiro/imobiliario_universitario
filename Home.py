@@ -1,22 +1,30 @@
 import streamlit as st
-from streamlit_folium import st_folium
+import streamlit_folium
 import pandas as pd
-import csv
 from scripts.tabulacao_de_dados import Dataset
 from scripts.web_scraping import Scraper
 from scripts.mapa import Criar_Mapa
 from scripts.analises import Tirar_infos_bairros # Temporário
+import os
+from datetime import datetime
 
 st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
 
 st.title('Imóveis de perfil universitário')
 st.subheader('São Carlos - SP')
 
-#Cria o botão para o user atualizar o
-botao_scrap = st.button('Atualizar o banco de dados', type='primary')
-
 #O programa sempre vai ler os dados do arquivo csv
 df_principal = pd.read_csv('dados.csv')
+
+#Puxando a data da ultima modificação do csv
+timestamp = os.path.getmtime('dados.csv')
+ultima_modificacao = datetime.fromtimestamp(timestamp)
+
+st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y %H:%M:%S')}')
+
+#Cria o botão para o user atualizar o banco de dados
+botao_scrap = st.button('Atualizar o banco de dados', type='primary')
+
 
 # Se o user apertar o botão, o scraper é chamado, e os dados são atualizados, e o csv antigo é substituido
 if botao_scrap:
@@ -66,10 +74,10 @@ def exibir_metricas(df_filtrado):
 def Intervalo_Slider():
     range_min = df_principal['Total / Mês'].min()
     range_max = df_principal['Total / Mês'].max()
-    range_slider = st.sidebar.slider('Selecione um intervalo',
-                          range_min, range_max,
-                          value=(range_min, range_max)
-                          )
+    range_slider = (st.sidebar.slider('Selecione um intervalo',
+                    range_min, range_max,
+                    value=(range_min, range_max)
+                    ))
     return range_slider
 
 # Exibe o layout de filtro de dormitórios, e recebe o filtro do usuário
@@ -93,17 +101,13 @@ def Analise_Escolhida():
     return analise_escolhida
 
 # Layout da exibição da tabela com a listagem dos apartamentos por bairro
-def exibir_tabelas_bairros(df_filtro):
-    opcoes = st.selectbox(
-        'Selecione o bairro',
-        ['Todos'] + list(df_filtro['Bairro'].unique())
-    )
+def exibir_tabelas_bairros(df_filtro,opcao):
     # Exibir nada inicialmente
-    if opcoes == 'Todos':
-        return df_principal[['Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
+    if opcao == 'Todos':
+        return df_filtro[['Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
     else:
-        filtro = df_filtro[df_filtro['Bairro'] == opcoes] #Listar dados só do bairro escolhido
-        st.write("Dados dos apartamentos em:", opcoes)
+        filtro = df_filtro[df_filtro['Bairro'] == opcao] #Listar dados só do bairro escolhido
+        st.write("Dados dos apartamentos em:", opcao)
         return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
 
 analise = Analise_Escolhida()
@@ -126,26 +130,41 @@ mapa = Criar_Mapa(df_info, analise) # Cria o mapa a partir dessas métricas
 try:
     # Exibir as métricas e o mapa gerado, conforme os filtros
     exibir_metricas(df_filtrado)
-    mapa_st = st_folium(
+    mapa_st = streamlit_folium.st_folium(
             mapa,
             width=850,
             height=450,
             )
+
 except:
     st.write('Sem apartamentos')
 
-try:
-    # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
-    st.subheader('Detalhamento')
-    # column_config pra fazer a URL virar hiperlink,
-    # display_text pra encurtar a URL
-    st.dataframe(
-        exibir_tabelas_bairros(df_filtrado),
-        column_config={
-            'Link': st.column_config.LinkColumn('Link',
-            display_text='Ver Anúncio')
-        }
+#Select box com todos os bairros no mapa
+opcoes = st.selectbox(
+        'Selecione o bairro',
+        ['Todos'] + sorted(df_filtrado['Bairro'].unique())
     )
-except:
-    pass
+
+# Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
+st.subheader('Detalhamento')
+
+# column_config pra fazer a URL virar hiperlink,
+# display_text pra encurtar a URL
+st.dataframe(
+    exibir_tabelas_bairros(df_filtrado, opcoes),
+    hide_index=True,
+    column_config={
+        'Link': st.column_config.LinkColumn('Link',
+        display_text='Ver Anúncio')
+    })
+
+
+
+
+
+
+
+
+
+
 

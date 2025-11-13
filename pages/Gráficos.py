@@ -1,3 +1,4 @@
 import streamlit as st
 
-st.title('Página 2')
+st.title('Gráficos')
+st.subheader('Em desenvolvimento...')

@@ -1,4 +1,3 @@
-import pandas as pd
 from scripts.coord_bairros import Buscar_coords
 
 

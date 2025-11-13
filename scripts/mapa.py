@@ -1,6 +1,5 @@
 import folium
 import branca.colormap as cm
-import streamlit as st
 
 # Cria o mapa com os dados
 def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
@@ -35,7 +34,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     mapa.add_child(escala_cores)
 
     # Função que cria o círculo dos bairros em degradê
-    def Circulo(coordenada, escala_cores, html, mapa):
+    def Circulo(coordenada, escala_cores, html, mapa, bairro):
         folium.CircleMarker(
             location=coordenada,
             radius=20,
@@ -45,7 +44,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
             fill_color=escala_cores(info_cor),
             fill_opacity=0.8,
             opacity=1,
-            popup=html,
+            popup=bairro,
             tooltip=html,
         ).add_to(mapa)
 
@@ -63,7 +62,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
             <strong>Valor máximo:</strong> R$ {linha['Max']}
             """
 
-        Circulo(coordenada, escala_cores, html_texto, mapa)
+        Circulo(coordenada, escala_cores, html_texto, mapa, linha['Bairro'])
 
 
     # Add logos da USP e da UFSCar nas respectivas localizações
