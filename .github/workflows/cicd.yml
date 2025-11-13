@@ -1,0 +1,38 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Atualizacao de banco de dados imobiliarios
+
+on:
+  schedule:
+    - cron: "0 21 * * *"  
+  workflow_dispatch:
+
+jobs:
+  atualizar_csv:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Checkout repositorio
+      with:
+        persist-credentials: true
+        
+    - name: Instalar requirements e driver
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install webdriver-manager
+        
+    - name: Rodar o scraper
+      run: |
+        python scripts/web_scraping.py
+        
+    - name: Dar commit e push do csv
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        git add data/dados_imoveis.csv || echo "Nada para commitar"
+        git commit -m "Atualiza dados automaticamente [ci skip]" || echo "Sem mudanças para commitar"
+        git push
