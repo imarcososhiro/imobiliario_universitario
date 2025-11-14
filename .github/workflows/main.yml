@@ -33,4 +33,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git add dados/dados_imoveis.csv || echo "Nada pra commitar"
           git commit -m "Atualiza dados automaticamente [ci skip]" || echo "Sem mudanças pra commitar"
-          git push
+          git pull --rebase origin main
+          git push origin main
