@@ -21,7 +21,7 @@ st.set_page_config(
 
 """
 # :material/query_stats: Análise imobiliária universitária  
-##### Região de São Carlos - SP | USP e UFSCar 
+##### Região de São Carlos - SP | USP (Campus I) e UFSCar 
 """
 
 
