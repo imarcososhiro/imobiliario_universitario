@@ -3,9 +3,9 @@ import branca.colormap as cm
 
 # Cria o mapa com os dados
 def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
-    estilo_mapa = "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png"
-    attr = "Stadia Maps"
-    mapa = folium.Map(location=(-21.99428551038883, -47.88574553256096), zoom_start=14, min_zoom=12,max_zoom=15,scrollWheelZoom=True,zoom_control=False,doubleClickZoom=False,tiles=estilo_mapa,attr=attr)
+    #estilo_mapa = "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+    #attr = "CartoDB"
+    mapa = folium.Map(location=(-21.99428551038883, -47.88574553256096), zoom_start=14, min_zoom=12,max_zoom=15,scrollWheelZoom=True,zoom_control=False,doubleClickZoom=False)
 
     # Criando legendas pra descrição das cores
     if analise == 'Media':
