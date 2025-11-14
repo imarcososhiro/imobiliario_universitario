@@ -2,7 +2,7 @@
 # Também contém a função Buscar_coords, usada em outros scripts, que procura o nome do bairro no dicionário de coordenadas
 
 coordenadas_bairros = {
-    'Centro': (-22.011108751067262, -47.891135023577114),
+    'Centro': (-22.016570299078424, -47.89118675813608),
     'Cidade Jardim': (-21.99828963135949, -47.89442350979536),
     'Jardim Lutfalla': (-22.004692816173417, -47.89355504374654),
     'Vila Costa do Sol': (-22.002575046600796, -47.883635416847206),

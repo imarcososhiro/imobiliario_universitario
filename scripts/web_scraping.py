@@ -161,7 +161,7 @@ def Scraper():
             aps_dados.append(especificacoes)
         except:
             pass
-    
+
     # Pegando quantidade de imóveis encontrados
     texto_imoveis = navegador.find_element(By.XPATH, '/html/body/main/section/div/h1').text
     quantidade_imoveis = texto_imoveis.split(' ')[0]

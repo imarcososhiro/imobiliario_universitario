@@ -6,33 +6,36 @@ from scripts.analises import Tirar_infos_bairros # Temporário
 import os
 from datetime import datetime
 
-st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
-
-st.title('Imóveis de perfil universitário')
-st.subheader('São Carlos - SP')
-
 #Lendo dados do arquivo csv diariamente atualizado
 diretorio_atual = os.path.dirname(__file__)
 caminho_csv = os.path.join(diretorio_atual,"dados", "dados_imoveis.csv")
 df_principal = pd.read_csv(caminho_csv)
 
-#Puxando a data da ultima modificação do csv
-timestamp = os.path.getmtime(caminho_csv)
-ultima_modificacao = datetime.fromtimestamp(timestamp)
+st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
 
-st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y %H:%M:%S')}')
+st.set_page_config(
+    page_title="Análise Imobiliária Universitária",
+    page_icon=":chart_with_upwards_trend:",
+    layout="wide",
+)
 
-# Função que exibe métricas de média, mediana e quantidade de apartamentos
+"""
+# :material/query_stats: Análise imobiliária universitária  
+##### Região de São Carlos - SP | USP e UFSCar 
+"""
+
+
+# Função que exibe métricas de média e quantidade de apartamentos
 def exibir_metricas(df_filtrado):
     # Criando métricas
     titulo_metrica1 = 'Média geral'
     media_geral = df_filtrado['Total / Mês'].mean()
 
-    titulo_metrica2 = 'Quantidade de apartamentos'
+    titulo_metrica2 = 'Quantidade de Imóveis'
     qtde_aps = df_filtrado['Total / Mês'].count()
 
-    titulo_metrica3 = 'Mediana geral'
-    mediana_geral = df_filtrado['Total / Mês'].median()
+    titulo_metrica3 = 'Quantidade de Bairros'
+    qtde_im = df_filtrado['Bairro'].nunique()
 
     titulo_metrica4 = 'Valor mínimo'
     valor_minimo = df_filtrado['Total / Mês'].min()
@@ -47,13 +50,12 @@ def exibir_metricas(df_filtrado):
     with col2:
         st.metric(titulo_metrica2, qtde_aps)
     with col3:
-        st.metric(titulo_metrica3, f'R$ {mediana_geral.round(2)}')
+        st.metric(titulo_metrica3, qtde_im)
 
-    col4,colvazia,col5 = st.columns(3)
+    col4,col5 = st.columns(2)
     with col4:
         st.metric(titulo_metrica4, f'R$ {valor_minimo.round(2)}')
-    with colvazia:
-        st.write('')
+
     with col5:
         st.metric(titulo_metrica5, f'R$ {valor_maximo.round(2)}')
 
@@ -96,7 +98,7 @@ def exibir_tabelas_bairros(df_filtro,opcao):
         return df_filtro[['Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
     else:
         filtro = df_filtro[df_filtro['Bairro'] == opcao] #Listar dados só do bairro escolhido
-        st.write("Dados dos apartamentos em:", opcao)
+        st.write("Imóveis em:", opcao)
         return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
 
 analise = Analise_Escolhida()
@@ -121,21 +123,28 @@ try:
     exibir_metricas(df_filtrado)
     mapa_st = streamlit_folium.st_folium(
             mapa,
-            width=850,
-            height=450,
+            width=900,
+            height=500,
             )
 
 except:
     st.write('Sem apartamentos')
+
+#Puxando a data da ultima modificação do csv
+timestamp = os.path.getmtime(caminho_csv)
+ultima_modificacao = datetime.fromtimestamp(timestamp)
+st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y %H:%M:%S')}')
+
+# Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
+'''
+## Detalhamento
+'''
 
 #Select box com todos os bairros no mapa
 opcoes = st.selectbox(
         'Selecione o bairro',
         ['Todos'] + sorted(df_filtrado['Bairro'].unique())
     )
-
-# Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
-st.subheader('Detalhamento')
 
 # column_config pra fazer a URL virar hiperlink,
 # display_text pra encurtar a URL
