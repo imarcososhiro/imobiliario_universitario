@@ -133,7 +133,7 @@ except:
 #Puxando a data da ultima modificação do csv
 timestamp = os.path.getmtime(caminho_csv)
 ultima_modificacao = datetime.fromtimestamp(timestamp)
-st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y %H:%M:%S')}')
+st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y')}')
 
 # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
 '''
