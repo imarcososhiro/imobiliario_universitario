@@ -3,8 +3,6 @@ import branca.colormap as cm
 
 # Cria o mapa com os dados
 def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
-    #estilo_mapa = "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-    #attr = "CartoDB"
     mapa = folium.Map(location=(-21.99428551038883, -47.88574553256096), zoom_start=14, min_zoom=12,max_zoom=15,scrollWheelZoom=True,zoom_control=False,doubleClickZoom=False)
 
     # Criando legendas pra descrição das cores
@@ -19,7 +17,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
 
     # Definindo cores do degradê de cada análise
     if analise == 'Media':
-        degrade = ['green', 'yellow', 'red']
+        degrade = ['pink','red']
     elif analise == 'Quantidade':
         degrade = ['lightblue','darkblue']
 
