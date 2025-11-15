@@ -31,7 +31,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 <p align="center">
   <a href="https://imobiliariouniversitario.streamlit.app/" target="_blank">
-     <img width="717" height="563" alt="Screenshot_1" src="https://github.com/user-attachments/assets/c15ba936-eaa3-4b3b-8e42-593af110e221" />
+     <img width="717" height="569" alt="Screenshot_3" src="https://github.com/user-attachments/assets/3a6b7c3a-c674-4cc8-9482-d7290400615c" />
   </a>
 </p> 
 
