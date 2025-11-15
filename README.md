@@ -48,8 +48,6 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 <img width="1015" height="489" alt="Analise imobiliaria filtro2" src="https://github.com/user-attachments/assets/ed904d32-580b-412e-8c34-0dd4768a0ddf" />  
   
-  
-🟡 `Gráficos` - Na segunda página, exibe a plotagem de gráficos das métricas calculadas, para melhor análise dos dados coletados.
 
 ## **Lógica de operação**
 1. Utilizando a biblioteca Selenium, foi feito um Web Scraper que faz uma raspagem e a limpeza de dados básicos dos imóveis do site da imobiliária mais famosa da cidade, guardando-os em um arquivo CSV.  
@@ -60,22 +58,24 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 ## **Estrutura do projeto**
 ### **Descrição simples dos principais 📄 arquivos do sistema**
-  
+```bash
 📂 imobiliario_universitario  
-├── 📄 Home.py  
+├── 📄 Home.py
+│
 ├── 📂 .streamlit  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 config.toml  
+│    └── 📄 config.toml  
 ├── 📂 dados  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 dados_imoveis.csv  
+│    └── 📄 dados_imoveis.csv  
 ├── 📂 pages  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 Gráficos.py  
+│    └── 📄 Gráficos.py  
 └── 📂 scripts  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 __init__.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 analises.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 coord_bairros.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 mapa.py   
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 web_scraping.py  
-
+     ├── 📄 __init__.py  
+     ├── 📄 analises.py  
+     ├── 📄 coord_bairros.py  
+     ├── 📄 mapa.py   
+     └── 📄 web_scraping.py  
+```
+  
 `Home.py` - *Arquivo principal. Recebe e aplica os filtros solicitados pelo usuário, plota o mapa interativo e a tabela de detalhamento dos imóveis*  
 
 `.streamlit/config.toml` - *Arquivo que contém as settings de personalização do App Streamlit (cores, fontes, tamanhos, etc.)*
