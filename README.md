@@ -4,7 +4,7 @@
   <a href="https://imobiliariouniversitario.streamlit.app/" target="_blank">
     <img 
       alt="status" 
-      src="https://img.shields.io/badge/Acessar%20Projeto%20no%20Site-blue?style=for-the-badge"
+      src="https://img.shields.io/badge/Acessar%20Site%20Streamlit%20do%20Projeto-blue?style=for-the-badge"
       width="300"
     >
   </a>
