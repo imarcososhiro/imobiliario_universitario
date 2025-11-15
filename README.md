@@ -50,7 +50,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 
 ## **Lógica de operação**
-1. Utilizando a biblioteca Selenium, foi feito um Web Scraper que faz uma raspagem e a limpeza de dados básicos dos imóveis do site da imobiliária mais famosa da cidade, guardando-os em um arquivo CSV.  
+1. Utilizando a biblioteca Selenium, foi feito um Web Scraper que faz uma raspagem e a limpeza de dados dos imóveis do site da imobiliária mais famosa da cidade, guardando-os em um arquivo CSV.  
 2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias, para atualização das informações no repositório.  
 3. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa clusterizado e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado.  
 4. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
