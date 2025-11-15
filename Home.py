@@ -5,6 +5,7 @@ from scripts.mapa import Criar_Mapa
 from scripts.analises import Tirar_infos_bairros # Temporário
 import os
 from datetime import datetime
+from datetime import timedelta
 
 #Lendo dados do arquivo csv diariamente atualizado
 diretorio_atual = os.path.dirname(__file__)
@@ -130,10 +131,11 @@ try:
 except:
     st.write('Sem apartamentos')
 
-#Puxando a data da ultima modificação do csv
+#Puxando a data da ultima modificação do csv (como com o github actions o horário vem em UTC, tem que converter pro o do BR)
 timestamp = os.path.getmtime(caminho_csv)
 ultima_modificacao = datetime.fromtimestamp(timestamp)
-st.write(f'Ultima atualização dos dados: {ultima_modificacao.strftime('%d/%m/%Y')}')
+timestamp_brasil = ultima_modificacao - timedelta(hours=3)
+st.write(f'Ultima atualização dos dados: {timestamp_brasil.strftime('%d/%m/%Y %H:%M')}')
 
 # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
 '''
