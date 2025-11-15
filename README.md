@@ -70,7 +70,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ├── 📂 pages  
 │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 Gráficos.py  
 └── 📂 scripts  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 analise_formatacao.py  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 __init__.py  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 analises.py  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 coord_bairros.py  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 mapa.py   
@@ -84,7 +84,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `pages/Gráficos.py` - *Segunda página do projeto (Em desenvolvimento)*
 
-`scripts/__init__.py` - *Script para o Home.py identificar que há scripts .py na pasta scripts*
+`scripts/__init__.py` - *Script para o Home.py identificar que há arquivos .py na pasta scripts*
 
 `scripts/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
   
