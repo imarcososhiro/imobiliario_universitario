@@ -40,7 +40,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ## **Funcionalidades**
 ✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **Apartamentos, Kitchnets e Studios em bairros próximos à USP e UFSCar, com valor total de até R$ 3000.** 
   
-✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis valor médio, mínimo e máximo) em um **mapa interativo clusterizado.**  
+✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis, valor médio, mínimo e máximo) em um **mapa interativo clusterizado.**  
   
 ✔️ `Filtros` - Permite a filtragem do perfil de imóvel desejado por nº de dormitórios e faixa de preço.  
 
