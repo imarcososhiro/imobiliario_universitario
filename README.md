@@ -4,7 +4,7 @@
   <a href="https://imobiliariouniversitario.streamlit.app/" target="_blank">
     <img 
       alt="status" 
-      src="https://img.shields.io/badge/Acessar%20Projeto%20no%20Site-blue?style=for-the-badge"
+      src="https://img.shields.io/badge/Acessar%20Site%20Streamlit%20do%20Projeto-blue?style=for-the-badge"
       width="300"
     >
   </a>
@@ -38,7 +38,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 **Observação:** Ainda falta adicionar dados de mais bairros ao sistema, porém o programa já funciona para boa parte dos bairros da região.  
   
 ## **Funcionalidades**
-✔️ `Dados` - Extrai, diariamente e automaticamente, dados básicos de imóveis para locação com perfil universitário: **Apartamentos, Kitchnets e Studios em bairros próximos à USP e UFSCar, com valor total de até R$ 3000.** 
+✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **Apartamentos, Kitchnets e Studios em bairros próximos à USP e UFSCar, com valor total de até R$ 3000.** 
   
 ✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis valor médio, mínimo e máximo) em um **mapa interativo clusterizado.**  
   
@@ -48,8 +48,6 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 <img width="1015" height="489" alt="Analise imobiliaria filtro2" src="https://github.com/user-attachments/assets/ed904d32-580b-412e-8c34-0dd4768a0ddf" />  
   
-  
-🟡 `Gráficos` - Na segunda página, exibe a plotagem de gráficos das métricas calculadas, para melhor análise dos dados coletados.
 
 ## **Lógica de operação**
 1. Utilizando a biblioteca Selenium, foi feito um Web Scraper que faz uma raspagem e a limpeza de dados básicos dos imóveis do site da imobiliária mais famosa da cidade, guardando-os em um arquivo CSV.  
@@ -60,22 +58,24 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 ## **Estrutura do projeto**
 ### **Descrição simples dos principais 📄 arquivos do sistema**
-  
+```bash
 📂 imobiliario_universitario  
-├── 📄 Home.py  
+├── 📄 Home.py
+│
 ├── 📂 .streamlit  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 config.toml  
+│    └── 📄 config.toml  
 ├── 📂 dados  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 dados_imoveis.csv  
+│    └── 📄 dados_imoveis.csv  
 ├── 📂 pages  
-│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 Gráficos.py  
+│    └── 📄 Gráficos.py  
 └── 📂 scripts  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 analise_formatacao.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 analises.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 coord_bairros.py  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── 📄 mapa.py   
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 web_scraping.py  
-
+     ├── 📄 __init__.py  
+     ├── 📄 analises.py  
+     ├── 📄 coord_bairros.py  
+     ├── 📄 mapa.py   
+     └── 📄 web_scraping.py  
+```
+  
 `Home.py` - *Arquivo principal. Recebe e aplica os filtros solicitados pelo usuário, plota o mapa interativo e a tabela de detalhamento dos imóveis*  
 
 `.streamlit/config.toml` - *Arquivo que contém as settings de personalização do App Streamlit (cores, fontes, tamanhos, etc.)*
@@ -84,7 +84,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `pages/Gráficos.py` - *Segunda página do projeto (Em desenvolvimento)*
 
-`scripts/__init__.py` - *Script para o Home.py identificar que há scripts .py na pasta scripts*
+`scripts/__init__.py` - *Script para o Home.py identificar que há arquivos .py na pasta scripts*
 
 `scripts/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
   
