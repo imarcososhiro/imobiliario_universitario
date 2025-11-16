@@ -1,4 +1,4 @@
-# <h1 align="center">**🗺️ Dashboard Interativo: Análise imobiliária no contexto universitário de São Carlos - SP**</h1> 
+# <h1 align="center">**🗺️ Dashboard Interativo e Web Scraper: Análise imobiliária no contexto universitário de São Carlos - SP**</h1> 
 
 <p align="center">
   <a href="https://imobiliariouniversitario.streamlit.app/" target="_blank">
