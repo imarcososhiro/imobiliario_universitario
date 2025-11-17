@@ -4,11 +4,15 @@
   <a href="https://imobiliariouniversitario.streamlit.app/" target="_blank">
     <img 
       alt="status" 
-      src="https://img.shields.io/badge/Acessar%20Site%20Streamlit%20do%20Projeto-blue?style=for-the-badge"
+      src="https://img.shields.io/badge/Acessar%20Site%20do%20Projeto-darkgreen?style=for-the-badge"
       width="300"
     >
   </a>
 </p>
+
+**Se um aviso assim aparecer, clique no botão azul e espere o site carregar**
+
+<img width="1015" height="489" alt="Pagina" src="https://github.com/user-attachments/assets/d157527a-6d22-4c69-ba91-39a52e976e56" />  
 
 ---
 
@@ -23,8 +27,6 @@ streamlit run Home.py
 #### ***• Para atualizar o banco de dados manualmente, rode o script ```web_scraping.py```, na pasta scripts (ele roda em segundo plano)***
 
 ## **Descrição**  
-<img alt="status" src="https://img.shields.io/badge/Projeto%20em%20Desenvolvimento-darkgreen?style=for-the-badge">  
-
 Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões próximas à USP e UFSCar, na cidade de São Carlos/SP, para exibí-los por meio de um mapa interativo. Assim, pode-se analisar os bairros com melhor valor e oferta para um ou mais estudantes morarem, permitindo filtrar os imóveis por bairro, nº de dormitórios, e faixa de preço.  
   
 ⚠️ **Disclaimer:** Esse projeto é puramente para fins educacionais e acadêmicos. Os dados foram coletados de forma pública, sem violar nenhum termo de uso do site. Nenhum dado pessoal foi armazenado.  
@@ -38,6 +40,9 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 **Observação:** Ainda falta adicionar dados de mais bairros ao sistema, porém o programa já funciona para boa parte dos bairros da região.  
   
 ## **Funcionalidades**
+
+<img alt="status" src="https://img.shields.io/badge/Projeto%20em%20Desenvolvimento-blue?style=for-the-badge">  
+
 ✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **Apartamentos, Kitchnets e Studios em bairros próximos à USP e UFSCar, com valor total de até R$ 3000.** 
   
 ✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis, valor médio, mínimo e máximo) em um **mapa interativo clusterizado.**  
@@ -47,6 +52,10 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ✔️ `Tabela` - Conforme o filtro aplicado, exibe em uma tabela os detalhes de todos os imóveis por bairro (Link do anúncio, valor do aluguel, condomínio, IPTU, etc.).  
   
 <img width="1015" height="489" alt="Analise imobiliaria filtro2" src="https://github.com/user-attachments/assets/ed904d32-580b-412e-8c34-0dd4768a0ddf" />  
+
+
+  
+🟡 `Gráficos` - Segunda página com análises gráficas dos dados.
   
 
 ## **Lógica de operação**
