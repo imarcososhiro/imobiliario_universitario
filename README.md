@@ -10,9 +10,8 @@
   </a>
 </p>
 
-**Se um aviso assim aparecer, clique no botão azul e espere o site carregar**
-
-<img width="1015" height="489" alt="Pagina" src="https://github.com/user-attachments/assets/d157527a-6d22-4c69-ba91-39a52e976e56" />  
+ <h3 align="center"> Se um aviso assim aparecer, clique no botão azul e espere o site carregar  <br><br/>
+  <img width="500" height="489" alt="Pagina" src="https://github.com/user-attachments/assets/d157527a-6d22-4c69-ba91-39a52e976e56" />  
 
 ---
 
