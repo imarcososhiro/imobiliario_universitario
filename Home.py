@@ -32,33 +32,34 @@ def exibir_metricas(df_filtrado):
     titulo_metrica1 = 'Média geral'
     media_geral = df_filtrado['Total / Mês'].mean()
 
-    titulo_metrica2 = 'Quantidade de Imóveis'
-    qtde_aps = df_filtrado['Total / Mês'].count()
-
-    titulo_metrica3 = 'Quantidade de Bairros'
-    qtde_im = df_filtrado['Bairro'].nunique()
-
-    titulo_metrica4 = 'Valor mínimo'
+    titulo_metrica2 = 'Valor mínimo'
     valor_minimo = df_filtrado['Total / Mês'].min()
 
-    titulo_metrica5 = 'Valor máximo'
+    titulo_metrica3 = 'Valor máximo'
     valor_maximo = df_filtrado['Total / Mês'].max()
+
+    titulo_metrica4 = 'Quantidade de Imóveis'
+    qtde_aps = df_filtrado['Total / Mês'].count()
+
+    titulo_metrica5 = 'Quantidade de Bairros'
+    qtde_im = df_filtrado['Bairro'].nunique()
+
 
     # Exibindo métricas em colunas
     col1,col2,col3 = st.columns(3)
     with col1:
         st.metric(titulo_metrica1, f'R$ {media_geral.round(2)}')
     with col2:
-        st.metric(titulo_metrica2, qtde_aps)
+        st.metric(titulo_metrica2, f'R$ {valor_minimo.round(2)}')
     with col3:
-        st.metric(titulo_metrica3, qtde_im)
+        st.metric(titulo_metrica3, f'R$ {valor_maximo.round(2)}')
 
     col4,col5 = st.columns(2)
     with col4:
-        st.metric(titulo_metrica4, f'R$ {valor_minimo.round(2)}')
+        st.metric(titulo_metrica4, qtde_aps)
 
     with col5:
-        st.metric(titulo_metrica5, f'R$ {valor_maximo.round(2)}')
+        st.metric(titulo_metrica5,  qtde_im)
 
 
 # Criando filtros
@@ -93,43 +94,64 @@ def Analise_Escolhida():
     return analise_escolhida
 
 # Layout da exibição da tabela com a listagem dos apartamentos por bairro
-def exibir_tabelas_bairros(df_filtro,opcao):
-    # Exibir nada inicialmente
-    if opcao == 'Todos':
-        return df_filtro[['Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
-    else:
-        filtro = df_filtro[df_filtro['Bairro'] == opcao] #Listar dados só do bairro escolhido
-        st.write("Imóveis em:", opcao)
-        return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Aluguel Cheio']].sort_values(by='Total / Mês')
+def exibir_tabelas_bairros(df_filtro,opcao_bairro):
 
-analise = Analise_Escolhida()
+    # Exibir nada inicialmente
+    if opcao_bairro == 'Todos':
+        return df_filtro[['Tipo','Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Banheiros','Suítes','Garagens','Aluguel Cheio']].sort_values(by='Total / Mês')
+    else:
+        filtro = df_filtro[df_filtro['Bairro'] == opcao_bairro] #Listar dados só do bairro escolhido
+        st.write("Imóveis em:", opcao_bairro)
+        return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Banheiros','Suítes','Garagens','Aluguel Cheio']].sort_values(by='Total / Mês')
+
+def Tipo_Escolhido():
+    tipo_escolhido = st.sidebar.radio(
+        "Tipo de imóvel",
+        ('Todos','Apartamento','Casa')
+    )
+
+    return tipo_escolhido
+
+tipo = Tipo_Escolhido()
 n_dormitorios = Dormitorios_num()
 intervalo = Intervalo_Slider()
+analise = Analise_Escolhida()
 
 # Aplicando filtros no banco de dados e printando mapa
 
+# Primeiro filtro (prioritário): tipo de apartamento desejado
+if tipo == 'Todos':
+    df_tipo = df_principal
+else:
+    df_tipo = df_principal[df_principal['Tipo'] == tipo]
+
+# Baseado no primeiro filtro, os outros são aplicados
+
 # Se tiver filtro de dormitório, filtra por preço e dormitório
 if len(n_dormitorios) > 0:
-    df_filtrado = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0]) & (df_principal['Dormitórios'].isin(n_dormitorios))]
+    df_filtrado = df_tipo[(df_tipo['Total / Mês'] <= intervalo[1]) & (df_tipo['Total / Mês'] >= intervalo[0]) & (df_tipo['Dormitórios'].isin(n_dormitorios))]
+
 # Se não tiver, filtra só por preço
 else:
-    df_filtrado = df_principal[(df_principal['Total / Mês'] <= intervalo[1]) & (df_principal['Total / Mês'] >= intervalo[0])]
+    df_filtrado = df_tipo[(df_tipo['Total / Mês'] <= intervalo[1]) & (df_tipo['Total / Mês'] >= intervalo[0])]
 
 df_info = Tirar_infos_bairros(df_filtrado) # Produz um dataframe de métricas gerais (Média, mediana, valor mín, max, etc), conforme o filtro aplicado pelo usuário
 mapa = Criar_Mapa(df_info, analise) # Cria o mapa a partir dessas métricas
 
 # Estruturas try/except pra se não tiver apartamento com algum filtro, não imprimir erro
+
+# Exibir as métricas e o mapa gerado, conforme os filtros
 try:
-    # Exibir as métricas e o mapa gerado, conforme os filtros
     exibir_metricas(df_filtrado)
     mapa_st = streamlit_folium.st_folium(
             mapa,
             width=900,
             height=500,
             )
-
 except:
-    st.write('Sem apartamentos')
+    st.header("Não há imóveis com esses filtros")
+    st.image('nopuedeser.jpg')
+
 
 #Puxando a data da ultima modificação do csv (como com o github actions o horário vem em UTC, tem que converter pro o do BR)
 timestamp = os.path.getmtime(caminho_csv)
@@ -143,7 +165,7 @@ st.write(f'Ultima atualização dos dados: {timestamp_brasil.strftime('%d/%m/%Y 
 '''
 
 #Select box com todos os bairros no mapa
-opcoes = st.selectbox(
+opcoes_bairros = st.selectbox(
         'Selecione o bairro',
         ['Todos'] + sorted(df_filtrado['Bairro'].unique())
     )
@@ -151,7 +173,7 @@ opcoes = st.selectbox(
 # column_config pra fazer a URL virar hiperlink,
 # display_text pra encurtar a URL
 st.dataframe(
-    exibir_tabelas_bairros(df_filtrado, opcoes),
+    exibir_tabelas_bairros(df_filtrado, opcoes_bairros),
     hide_index=True,
     column_config={
         'Link': st.column_config.LinkColumn('Link',

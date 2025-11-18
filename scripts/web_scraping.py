@@ -46,7 +46,7 @@ def Scraper():
     navegador.execute_script(""" 
         var slider = document.getElementById('slider_loc');
         if (slider && slider.noUiSlider) {
-            slider.noUiSlider.set([0, 3000]); // min, max
+            slider.noUiSlider.set([0, 8000]); // min, max
         }
     """) # código em JS que eu peguei do gpt porque não manjo de JS
 
@@ -55,9 +55,12 @@ def Scraper():
     cidade_select = Select(cidade_id)
     cidade_select.select_by_value('190')
 
-    # Filtrar por tipo (Apartamento,Flat, Kitchnet, Studio, com/sem condomínio)
+    # Filtrar por tipo
     tipo_imovel_id = navegador.find_element(By.ID,'id_tipo_imovel')
     tipo_imovel_select = Select(tipo_imovel_id)
+
+    # FILTROS PARA APARTAMENTOS
+
     tipo_imovel_select.select_by_value('184') # Apartamento
     tipo_imovel_select.select_by_value('164') # Apartamento sem condomínio
     tipo_imovel_select.select_by_value('55') # Flat
@@ -69,6 +72,15 @@ def Scraper():
     tipo_imovel_select.select_by_value('8') # Padrão
     tipo_imovel_select.select_by_value('181') # Prédio
     tipo_imovel_select.select_by_value('161') # Studio
+
+    # FILTROS PRA CASAS
+    tipo_imovel_select.select_by_value('39') #Área de lazer
+    tipo_imovel_select.select_by_value('10') #Condomínio
+    tipo_imovel_select.select_by_value('40') #Edícula
+    tipo_imovel_select.select_by_value('12') #Padrão
+    tipo_imovel_select.select_by_value('193') #Sem condomínio
+    tipo_imovel_select.select_by_value('13') #Sobrado
+    tipo_imovel_select.select_by_value('16') #Sobrado sem condomínio
 
     # Filtrar pelos bairros - adicionar mais depois
     bairro_id = navegador.find_element(By.ID,'id_bairro')
@@ -133,14 +145,12 @@ def Scraper():
     aps_dados = [] # lista que vai guardar todos os dados dos apartamentos
 
     # Função que extrai os dados dos apartamentos a partir da página específica deles
-    def Extrair_dados_aps(bairro, link):
+    def Extrair_dados_aps(bairro, tipo_im, link):
         nonlocal aps_dados
         try:
             valores_agrupados = navegador.find_element(By.ID, 'valores_imovel')
             valores = valores_agrupados.find_elements(By.XPATH, './div')
-            especificacoes = []
-            especificacoes.append(('Bairro', bairro))
-            especificacoes.append(('Link', link))
+            especificacoes = [('Bairro', bairro), ('Tipo', tipo_im),('Link', link)]
             categorias = ['C. Bonificação', 'Condomínio', 'IPTU', 'Total / Mês']
             for valor in valores:
                 categoria, valor = map(str, valor.text.split('\n'))
@@ -156,9 +166,28 @@ def Scraper():
                     continue
                 especificacoes.append((categoria, valor))
 
-            dormitorios = navegador.find_element(By.XPATH, '/html/body/main/section[2]/div/div[1]/div[5]/div/div[3]/div/div').text
-            especificacoes.append(('Dormitórios', dormitorios))
+            dados_imovel = navegador.find_elements(By.CLASS_NAME, 'card-imo-radius')[1].text.split('\n')
+
+            for dado in dados_imovel:
+                if 'Dormitório' in dado:
+                    dormitorio_index = dados_imovel.index(dado) -1
+                    dormitorios = dados_imovel[dormitorio_index]
+                    especificacoes.append(('Dormitórios', dormitorios))
+                if 'Banheiro' in dado:
+                    banheiros_index = dados_imovel.index(dado) - 1
+                    banheiros = dados_imovel[banheiros_index]
+                    especificacoes.append(('Banheiros', banheiros))
+                if 'Suíte' in dado:
+                    suites_index = dados_imovel.index(dado) - 1
+                    suites = dados_imovel[suites_index]
+                    especificacoes.append(('Suítes', suites))
+                if 'Garage' in dado:
+                    garagens_index = dados_imovel.index(dado) - 1
+                    garagens = dados_imovel[garagens_index]
+                    especificacoes.append(('Garagens', garagens))
+
             aps_dados.append(especificacoes)
+
         except:
             pass
 
@@ -168,7 +197,7 @@ def Scraper():
 
     print(f'\n✔️ {quantidade_imoveis} imóveis encontrados')
 
-    print('\nOBS: Nem todos os apartamentos coletados serão listados no mapa, pois, o site só conta com filtro de\nvalor de Aluguel e, consequentemente, alguns imóveis ultrapassam o valor de R$ 3000 quando somado o Aluguel ao Condomínio e IPTU.\n')
+    print('\nOBS: Nem todos os apartamentos coletados serão listados no mapa, pois, o site só conta com filtro de\nvalor de Aluguel e, consequentemente, alguns imóveis ultrapassam o valor de R$ 8000 quando somado o Aluguel ao Condomínio e IPTU.\n')
 
     print('✔️ Começando extração dos dados...\n')
     # loop para extração de dados dos apartamentos
@@ -189,7 +218,10 @@ def Scraper():
         for link_apartamento in links_aps:
             navegador.get(link_apartamento)
             bairro = link_apartamento.split('/')[-2].replace('-', ' ') #Pego o nome do bairro diretamente da URL do ap
-            Extrair_dados_aps(bairro, str(link_apartamento))
+            tipo = link_apartamento.split('/')[-4]
+            if tipo == 'Comercial':
+                continue
+            Extrair_dados_aps(bairro, tipo, str(link_apartamento))
             if len(aps_dados) % 10 == 0:
                 print(f'Aps extraídos: {len(aps_dados)}')
         # Quando chego na última vitrine, o link dela tem o formato 'JavaScript:void(0);'
@@ -228,8 +260,8 @@ def Scraper():
             aps_dados_limpos.append(dict(lista_tuplas))
 
         df = pd.DataFrame(aps_dados_limpos)
-        # Preço limite dos aps = R$ 3000
-        return df[df['Total / Mês'] <= 3000]
+        # Preço limite dos aps = R$ 8000
+        return df[df['Total / Mês'] <= 8000]
 
     #Dados limpos
     df_final = Limpar_Dados(aps_dados)
@@ -238,7 +270,6 @@ def Scraper():
     output_dir = os.path.join(os.path.dirname(__file__), '..', 'dados')
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'dados_imoveis.csv')
-
     df_final.to_csv(output_path, index=False)
 
 Scraper()
