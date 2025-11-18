@@ -48,7 +48,7 @@ def Scraper():
         if (slider && slider.noUiSlider) {
             slider.noUiSlider.set([0, 8000]); // min, max
         }
-    """) # código em JS que eu peguei do gpt porque não manjo de JS
+    """) #Script JS que tive que pesquisar pelo comando, porque não manjo de JS
 
     # Filtrar pela cidade de São Carlos
     cidade_id = navegador.find_element(By.ID, 'id_cidade')
