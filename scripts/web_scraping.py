@@ -78,7 +78,6 @@ def Scraper():
     tipo_imovel_select.select_by_value('10') #Condomínio
     tipo_imovel_select.select_by_value('40') #Edícula
     tipo_imovel_select.select_by_value('12') #Padrão
-    tipo_imovel_select.select_by_value('193') #Sem condomínio
     tipo_imovel_select.select_by_value('13') #Sobrado
     tipo_imovel_select.select_by_value('16') #Sobrado sem condomínio
 

@@ -12,8 +12,6 @@ diretorio_atual = os.path.dirname(__file__)
 caminho_csv = os.path.join(diretorio_atual,"dados", "dados_imoveis.csv")
 df_principal = pd.read_csv(caminho_csv)
 
-st.set_page_config(layout="wide") # Pra tirar as bordas brancas padrão da página
-
 st.set_page_config(
     page_title="Análise Imobiliária Universitária",
     page_icon=":chart_with_upwards_trend:",
