@@ -151,12 +151,6 @@ except:
     st.image('nopuedeser.jpg')
 
 
-#Puxando a data da ultima modificação do csv (como com o github actions o horário vem em UTC, tem que converter pro o do BR)
-timestamp = os.path.getmtime(caminho_csv)
-ultima_modificacao = datetime.fromtimestamp(timestamp)
-timestamp_brasil = ultima_modificacao - timedelta(hours=3)
-st.write(f'Ultima atualização dos dados: {timestamp_brasil.strftime('%d/%m/%Y %H:%M')}')
-
 # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
 '''
 ## Detalhamento
