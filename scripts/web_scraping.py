@@ -116,7 +116,7 @@ def Scraper():
     bairro_select.select_by_value('16884')  # Monjolinho
     bairro_select.select_by_value('3538')  # Jardim Jockei Club A
     bairro_select.select_by_value('3777')  # Jardim Jockey Clube
-    bairro_select.select_by_value('17341')  # Jardim Jockei Club
+    #bairro_select.select_by_value('17341')  # Jardim Jockei Club
     bairro_select.select_by_value('394')  # Parque Espraiado
 
     # Confirmar filtro
