@@ -1,4 +1,5 @@
 Bairro,Tipo,Link,Aluguel Cheio,Aluguel com Bonificação,Condomínio,IPTU,Total / Mês,Dormitórios,Banheiros,Garagens,Suítes
+Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/237150,"2.500,00","2.000,00","231,00","41,53",2272.53,2,1,1,
 Parque Arnold Schimidt,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/237148,"1.667,50","1.334,00","400,00","53,06",1787.06,2,1,1,
 Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/237141,"2.708,75","2.167,00","1.099,00","173,00",3439.0,3,1,2,
 Jardim Jockei Club A,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Jockei-Club-A/237140,"1.518,06","1.214,45",,,1214.45,2,1,1,
@@ -265,6 +266,7 @@ Jardim Paraiso,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Aparta
 Jardim Macarengo,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Macarengo/200226,"2.375,00","1.900,00","300,00",,2200.0,1,1,1,
 Jardim Nova Santa Paula,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Jardim-Nova-Santa-Paula/200038,"3.611,25","2.889,00",,"111,94",3000.94,4,2,6,
 Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/199856,"2.361,25","1.889,00","256,52","51,82",2197.34,1,1,1,
+Cidade Jardim,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Cidade-Jardim/199453,"2.778,75","2.223,00",,"100,00",2323.0,2,1,2,
 Cidade Jardim,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Cidade-Jardim/198831,"5.625,00","4.500,00",,"298,00",4798.0,3,4,2,2
 Cidade Jardim,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/198743,"2.778,75","2.223,00","300,00",,2523.0,2,1,1,
 Cidade Jardim,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Cidade-Jardim/198742,"2.778,75","2.223,00","300,00",,2523.0,2,1,1,
