@@ -38,7 +38,7 @@ def Scraper():
     print('✔️ Filtrando apartamentos')
 
     # Selecionar Locação
-    operacao = espera.until(EC.element_to_be_clickable((By.TAG_NAME, 'select')))
+    operacao = espera.until(EC.element_to_be_clickable((By.ID, 'locacao_venda')))
     operacao_select = Select(operacao)
     operacao_select.select_by_value('L')
 
