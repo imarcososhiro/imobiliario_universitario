@@ -99,6 +99,7 @@ Jardim Hikare,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartam
 Vila Elizabeth,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Vila-Elizabeth/207677,"4.167,50","3.334,00",,3334.0,3,4,1,,2
 Centro,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Centro/207443,"4.000,00","3.200,00","191,00",3391.0,3,1,2,,
 Vila Monteiro Gleba I,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Vila-Monteiro-Gleba-I/207439,"2.250,00",,,2250.0,4,1,3,,2
+Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/207353,"2.778,75","2.223,00","220,00",2823.0,3,1,2,"380,00",
 Centro,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Centro/206524,"5.556,25","4.445,00","225,00",4670.0,4,4,2,,
 Jardim Paraiso,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/206478,"5.000,00","4.000,00","250,00",4800.0,2,1,2,"550,00",
 Centro,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Centro/206455,"5.278,75","4.223,00","100,00",4323.0,3,1,4,,
@@ -108,7 +109,7 @@ Centro,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Centro/20
 Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/205978,"1.111,25","889,00","78,00",1857.0,1,1,1,"890,00",
 Centro,Apartamento,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/205353,"2.626,25","2.101,00","116,00",2775.76,3,1,1,"558,76",
 Cidade Jardim,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Cidade-Jardim/205046,"8.125,00","6.500,00","302,00",6802.0,3,2,3,,2
-Centro,Apartamento,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/205032,"4.445,00",,,5045.0,1,1,2,"600,00",
+Centro,Apartamento,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Centro/205032,"5.556,25","4.445,00",,5045.0,1,1,2,"600,00",
 Jardim Paraiso,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/204944,"2.500,00","2.000,00","53,43",2303.43,1,1,1,"250,00",
 Jardim Santa Paula,Apartamento,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/Padrao/Jardim-Santa-Paula/204823,"2.250,00","1.800,00","90,00",2390.0,2,1,1,"500,00",
 Jardim Paraiso,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/204782,"2.237,50","1.790,00","84,15",2269.15,2,1,1,"395,00",
@@ -169,6 +170,7 @@ Centro,Apartamento,https://www.cardinali.com.br/comprar/Sao-Carlos/Apartamento/P
 Vila Elizabeth,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Vila-Elizabeth/115252,"8.333,75","6.667,00","900,00",7567.0,4,3,8,,
 Jardim Alvorada,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Alvorada/115220,"2.570,00","2.056,00","86,00",2472.0,2,1,1,"330,00",
 Jardim Macarengo,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Jardim-Macarengo/115138,"1.875,00","1.500,00",,1500.0,1,1,1,,
+Parque Arnold Schimidt,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Parque-Arnold-Schimidt/114985,"1.528,75","1.223,00","450,00",1673.0,1,1,1,,
 Vila Celina,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Vila-Celina/114761,"972,50","778,00","45,57",973.9,1,1,1,"150,33",
 Jardim Macarengo,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Jardim-Macarengo/113468,"6.945,00","5.556,00","48,00",5604.0,4,2,2,,
 Jardim Macarengo,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Jardim-Macarengo/113438,"2.778,00",,"237,94",3015.94,3,1,5,,
@@ -238,7 +240,7 @@ Centro,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Centro/81
 Jardim Paraiso,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Paraiso/80692,"2.500,00","2.000,00","104,00",2476.0,2,1,1,"372,00",
 Centro,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Centro/79609,"10.000,00","8.000,00",,8000.0,4,3,4,,2
 Parque Arnold Schimidt,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Padrao/Parque-Arnold-Schimidt/78916,"4.755,00","3.804,00","289,98",4093.98,3,3,2,,
-Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/78565,"3.056,25","2.445,00","85,67",2845.67,2,1,1,"315,00",
+Centro,Apartamento,https://www.cardinali.com.br/alugar/Sao-Carlos/Apartamento/Padrao/Centro/78565,"3.056,25","2.445,00","85,67",2845.67,2,1,,"315,00",
 Vila Celina,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Vila-Celina/78421,"3.250,00","2.600,00","103,00",2703.0,2,1,1,,
 Centro,Casa,https://www.cardinali.com.br/alugar/Sao-Carlos/Casa/Padrao/Centro/77884,"3.472,50","2.778,00","60,00",2838.0,3,2,,,
 Centro,Casa,https://www.cardinali.com.br/comprar/Sao-Carlos/Casa/Sobrado/Centro/77536,"7.500,00","6.000,00","500,00",6500.0,5,4,2,,4
