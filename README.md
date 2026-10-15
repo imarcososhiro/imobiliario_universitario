@@ -23,10 +23,15 @@ cd imobiliario_universitario
 pip install -r requirements.txt
 streamlit run Home.py
   ```
-#### ***• Para atualizar o banco de dados manualmente (o scraper roda em segundo plano e precisa do Google Chrome instalado)***
+#### ***• Para atualizar o banco de dados manualmente (leva poucos minutos)***
 ```bash
 pip install -r requirements-scraper.txt
-python -m scraper.cardinali
+python -m scraper
+  ```
+#### ***• Para rodar os testes (usam páginas salvas, sem acessar o site)***
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
   ```
 
 ## **Descrição**  
@@ -64,8 +69,8 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 
 ## **Lógica de operação**
-1. Utilizando a biblioteca Selenium, foi feito um Web Scraper que faz uma raspagem e a limpeza de dados dos imóveis do site da imobiliária mais famosa da cidade, guardando-os em um arquivo CSV.  
-2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias, para atualização das informações no repositório.  
+1. Utilizando as bibliotecas httpx e BeautifulSoup, foi feito um Web Scraper que percorre as listagens de aluguel de São Carlos no site da imobiliária mais famosa da cidade, lê a página de cada imóvel (valores, características e dados estruturados JSON-LD) e guarda tudo num arquivo CSV. Como o site é renderizado no servidor, não é preciso abrir um navegador.  
+2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias. Antes de gravar, ele confere se o resultado faz sentido (taxa de falhas e queda brusca na quantidade de imóveis): se algo parecer quebrado, o CSV anterior é mantido.  
 3. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa clusterizado e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado.  
 4. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
 5. A cada filtro aplicado, todas as métricas e exibições são refeitas e reexibidas conforme a solicitação.  
@@ -77,31 +82,42 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ├── 📄 Home.py
 ├── 📄 requirements.txt
 ├── 📄 requirements-scraper.txt
+├── 📄 requirements-dev.txt
 │
 ├── 📂 .github/workflows  
-│    └── 📄 main.yml  
+│    ├── 📄 main.yml  
+│    └── 📄 testes.yml  
 ├── 📂 .streamlit  
 │    └── 📄 config.toml  
 ├── 📂 app  
-│    ├── 📄 __init__.py  
 │    ├── 📄 analises.py  
 │    ├── 📄 coord_bairros.py  
+│    ├── 📄 dados.py  
 │    └── 📄 mapa.py   
 ├── 📂 assets  
 ├── 📂 dados  
-│    └── 📄 dados_imoveis.csv  
+│    └── 📄 imoveis.csv  
 ├── 📂 pages  
 │    └── 📄 Gráficos.py  
-└── 📂 scraper  
-     ├── 📄 __init__.py  
-     └── 📄 cardinali.py  
+├── 📂 scraper  
+│    ├── 📄 __main__.py  
+│    ├── 📄 cardinali.py  
+│    ├── 📄 coleta.py  
+│    ├── 📄 conversao.py  
+│    ├── 📄 download.py  
+│    └── 📄 modelo.py  
+└── 📂 tests  
+     ├── 📂 fixtures  
+     └── 📄 test_*.py  
 ```
   
 `Home.py` - *Arquivo principal. Recebe e aplica os filtros solicitados pelo usuário, plota o mapa interativo e a tabela de detalhamento dos imóveis*  
 
-`requirements.txt` / `requirements-scraper.txt` - *Dependências do dashboard (usadas pelo Streamlit Cloud) e do scraper (usadas pelo GitHub Actions), separadas para cada ambiente instalar só o que precisa*
+`requirements.txt` / `requirements-scraper.txt` / `requirements-dev.txt` - *Dependências do dashboard (usadas pelo Streamlit Cloud), do scraper (usadas pelo GitHub Actions) e de desenvolvimento (testes), separadas para cada ambiente instalar só o que precisa*
 
 `.github/workflows/main.yml` - *Agendamento diário do scraper no GitHub Actions e commit do CSV atualizado*
+
+`.github/workflows/testes.yml` - *Roda os testes automaticamente em cada pull request*
 
 `.streamlit/config.toml` - *Arquivo que contém as settings de personalização do App Streamlit (cores, fontes, tamanhos, etc.)*
 
@@ -109,15 +125,47 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 `app/coord_bairros.py` - *Contém a função que retorna a coordenada do bairro pelo seu nome*  
   
+`app/dados.py` - *Lê o CSV do scraper e o deixa no formato do dashboard (recorte da região universitária, teto de R$ 8000)*  
+  
 `app/mapa.py` - *Contém a função que cria e clusteriza o mapa*  
 
 `assets/` - *Imagens usadas no dashboard (logos e ícones do mapa)*
 
-`dados/dados_imoveis.csv` - *Banco de dados gerado pelo Web Scraper*
+`dados/imoveis.csv` - *Banco de dados gerado pelo Web Scraper (veja o dicionário de dados abaixo)*
 
 `pages/Gráficos.py` - *Segunda página do projeto (Em desenvolvimento)*
   
-`scraper/cardinali.py` - *Faz o Scraping de dados do site da Cardinali e os exporta em CSV*  
+`scraper/cardinali.py` - *Lê as páginas de listagem e de cada imóvel do site da Cardinali*  
+
+`scraper/coleta.py` - *Orquestra a coleta (`python -m scraper`), confere o resultado e grava o CSV*  
+
+`scraper/download.py` - *Baixa as páginas, tentando de novo quando o site falha temporariamente*  
+
+`scraper/modelo.py` - *Formato comum dos imóveis, igual para qualquer imobiliária*  
+
+`tests/` - *Testes automatizados com páginas reais salvas em `tests/fixtures`. Para salvar uma página nova: `python -m tests.salvar_fixture <url> <nome>`*  
+
+### **Dicionário de dados (`dados/imoveis.csv`)**
+
+| Coluna | Descrição |
+|---|---|
+| `codigo` | Código do imóvel no site (identifica o mesmo imóvel ao longo dos dias) |
+| `fonte` | Imobiliária de origem |
+| `url` | Link do anúncio |
+| `tipo` / `subtipo` | Ex.: Apartamento / Kitchnet; Casa / Sobrado |
+| `bairro` | Bairro como escrito no site |
+| `titulo` | Título do anúncio |
+| `finalidade` | Residencial, Comercial ou ambos |
+| `situacao` | Ex.: DISPONÍVEL |
+| `aluguel` | Aluguel atual, sem desconto |
+| `aluguel_anterior` | Preço "DE:" quando o imóvel está em promoção |
+| `aluguel_bonificado` | Aluguel com desconto por pagar em dia |
+| `condominio` / `iptu` | Valores mensais |
+| `total_mensal` | Total por mês informado pelo site (vazio quando o aluguel é "Consulte-nos") |
+| `dormitorios` / `suites` / `banheiros` / `vagas` | Características |
+| `area_util_m2` / `area_construida_m2` / `area_total_m2` | Áreas em m² |
+| `foto_url` | Primeira foto do anúncio |
+| `coletado_em` | Data da coleta |
   
 
 ## **Tecnologias Utilizadas**
@@ -125,7 +173,9 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ![Git](https://img.shields.io/badge/Git-F05033?style=for-the-badge&logo=git&logoColor=white)
 ![GitHub](https://img.shields.io/badge/GitHub-000?style=for-the-badge&logo=github&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Selenium](https://img.shields.io/badge/Selenium-43B02A?style=for-the-badge&logo=selenium&logoColor=white)
+![HTTPX](https://img.shields.io/badge/HTTPX-1F2937?style=for-the-badge)
+![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-4B8BBE?style=for-the-badge)
+![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
 ![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![Folium](https://img.shields.io/badge/Folium-77B829?style=for-the-badge)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)

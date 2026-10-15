@@ -1,0 +1,4 @@
+# Tudo o que é preciso para desenvolver e rodar os testes
+-r requirements.txt
+-r requirements-scraper.txt
+pytest==9.1.1

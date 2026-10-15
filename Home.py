@@ -3,14 +3,14 @@ import streamlit_folium
 import pandas as pd
 from app.mapa import Criar_Mapa
 from app.analises import Tirar_infos_bairros # Temporário
+from app.dados import Carregar_imoveis
 import os
 from datetime import datetime
 from datetime import timedelta
 
 #Lendo dados do arquivo csv diariamente atualizado
 diretorio_atual = os.path.dirname(__file__)
-caminho_csv = os.path.join(diretorio_atual,"dados", "dados_imoveis.csv")
-df_principal = pd.read_csv(caminho_csv)
+df_principal = Carregar_imoveis()
 
 st.set_page_config(
     page_title="Análise Imobiliária Universitária",
@@ -73,7 +73,7 @@ def Intervalo_Slider():
 
 # Exibe o layout de filtro de dormitórios, e recebe o filtro do usuário
 def Dormitorios_num():
-    dormitorios = df_principal['Dormitórios'].unique()
+    dormitorios = df_principal['Dormitórios'].dropna().astype(int).unique()
     numero_dormitorios = st.sidebar.segmented_control(
     "Número de dormitórios", sorted(dormitorios), selection_mode="multi"
     )
