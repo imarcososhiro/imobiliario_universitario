@@ -8,6 +8,7 @@ import streamlit as st
 
 from app import formatacao as fmt
 from app.dados import DORMITORIOS_OU_MAIS, Filtros
+from app.historico import DIAS_NOVIDADE
 from app.metricas import CRITERIOS, MINIMO_IMOVEIS_BAIRRO, QUALQUER_CAMPUS
 
 OPCOES_CAMPUS = {"USP": "USP (Campus 1)", "UFSCar": "UFSCar", QUALQUER_CAMPUS: "Tanto faz (o mais perto)"}
@@ -84,6 +85,25 @@ def destaque(resumo: pd.DataFrame) -> None:
         f"(mediana de {fmt.numero(melhor['imoveis'])} imóveis)")
 
 
+def novidades(df: pd.DataFrame, historico_carregado: bool) -> None:
+    """Uma frase com quantos imóveis da seleção são novos ou baixaram de preço na última semana."""
+    if not historico_carregado:
+        st.caption(":material/history: O histórico de preços não pôde ser carregado agora, por isso os "
+                   "imóveis novos e as quedas de preço não aparecem. Recarregue a página mais tarde.")
+        return
+    novos, baixaram = int(df["novo"].sum()), int(df["total_anterior"].notna().sum())
+    if novos == 0:
+        texto = "Nenhum imóvel novo esta semana"
+    else:
+        texto = f"**{fmt.numero(novos)} {'imóvel novo' if novos == 1 else 'imóveis novos'}** esta semana"
+    if baixaram:
+        texto += f" · {fmt.numero(baixaram)} {'baixou' if baixaram == 1 else 'baixaram'} de preço"
+    st.markdown(f":material/new_releases: {texto}", help=(
+        f"**Novo**: apareceu no site nos últimos {DIAS_NOVIDADE} dias. **Baixou de preço**: o total por mês "
+        f"caiu nos últimos {DIAS_NOVIDADE} dias. Para vê-los no topo da lista, ordene os imóveis por "
+        "\"Novidades primeiro\"."))
+
+
 def ranking_bairros(resumo: pd.DataFrame, altura: int, completo: bool = False) -> None:
     """Bairros do melhor para o pior índice.
 
@@ -117,10 +137,21 @@ def cartao_imovel(imovel: pd.Series, distancia_ate: str) -> None:
             st.markdown(f'<img src="{html.escape(imovel["foto_url"], quote=True)}" alt="" loading="lazy" '
                         'style="width:100%;height:180px;object-fit:cover;border-radius:6px">',
                         unsafe_allow_html=True)
+        selos = []
+        if imovel["novo"]:
+            selos.append(":violet-badge[:material/new_releases: Novo]")
+        if pd.notna(imovel["total_anterior"]):
+            selos.append(":green-badge[:material/trending_down: Baixou de preço]")
+        if selos:
+            st.markdown(" ".join(selos))
         titulo = imovel["titulo"] if isinstance(imovel["titulo"], str) else f"{imovel['tipo']} em {imovel['bairro']}"
         st.markdown(f"**{escapar(titulo)}**")
         st.caption(f"{imovel['subtipo']} · {imovel['bairro']}")
-        st.markdown(f"#### {fmt.reais(imovel['total_mensal'])} /mês")
+        # Com dois "R$" na mesma linha, o Markdown leria o trecho entre eles como fórmula: daí o escapar()
+        preco = f"{escapar(fmt.reais(imovel['total_mensal']))} /mês"
+        if pd.notna(imovel["total_anterior"]):
+            preco += f" :small[:gray[~~{escapar(fmt.reais(imovel['total_anterior']))}~~]]"  # o valor de antes, riscado
+        st.markdown(f"#### {preco}")
 
         detalhes = [f"{fmt.reais(imovel['custo_por_dormitorio'])} por dormitório"]
         if pd.notna(imovel["dormitorios"]):
@@ -146,6 +177,10 @@ def tabela_imoveis(df: pd.DataFrame) -> None:
         "bairro": st.column_config.TextColumn("Bairro"),
         "subtipo": st.column_config.TextColumn("Tipo"),
         "total_mensal": st.column_config.NumberColumn("Total/mês (R$)", format="localized"),
+        "total_anterior": st.column_config.NumberColumn(
+            "Antes da queda (R$)", format="localized",
+            help=f"Total por mês antes da queda de preço, se ela aconteceu nos últimos {DIAS_NOVIDADE} dias"),
+        "novo": st.column_config.CheckboxColumn("Novo", help=f"Apareceu no site nos últimos {DIAS_NOVIDADE} dias"),
         "custo_por_dormitorio": st.column_config.NumberColumn("Por dormitório (R$)", format="localized"),
         "dormitorios": st.column_config.NumberColumn("Dorm.", format="%d"),
         "area_m2": st.column_config.NumberColumn("Área (m²)", format="%d"),
