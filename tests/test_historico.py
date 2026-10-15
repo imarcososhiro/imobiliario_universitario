@@ -190,3 +190,16 @@ def test_serie_por_bairro(historico_pequeno):
     primeiro_dia = serie[serie["coletado_em"] == "2026-01-01"].set_index("bairro")
     assert primeiro_dia.loc["Centro", "mediana_total"] == 1000.0
     assert primeiro_dia.loc["Jardim Paraíso", "imoveis"] == 1
+
+
+def test_ultima_observacao_por_semana(historico_pequeno):
+    semanal = consultas.ultima_observacao_por_semana(historico_pequeno)
+    linhas = [(semana.date(), codigo, total) for semana, codigo, total
+              in semanal[["semana", "codigo", "total_mensal"]].itertuples(index=False)]
+    # 01/01 (quinta) e 02/01 (sexta) caem na semana que começa na segunda 29/12; 05/01 começa outra.
+    # O imóvel 1 aparece nos dois dias da primeira semana, mas conta uma vez, com o preço do último dia.
+    assert linhas == [
+        (date(2025, 12, 29), 1, 900.0), (date(2025, 12, 29), 2, 2000.0), (date(2025, 12, 29), 3, 1500.0),
+        (date(2026, 1, 5), 1, 900.0), (date(2026, 1, 5), 3, 1600.0),
+    ]
+    assert "bairro" in semanal.columns  # traz o imóvel inteiro, não só o preço
