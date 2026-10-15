@@ -3,7 +3,8 @@ from streamlit_folium import st_folium
 
 from app import formatacao as fmt
 from app.dados import aplicar_filtros, carregar_imoveis
-from app.interface import (barra_lateral, destaque, grade_de_cartoes, indicadores, ranking_bairros,
+from app.historico import carregar_historico, marcar_novidades
+from app.interface import (barra_lateral, destaque, grade_de_cartoes, indicadores, novidades, ranking_bairros,
                            tabela_imoveis)
 from app.mapa import METRICAS_MAPA, PASTA_ASSETS, criar_mapa
 from app.metricas import MINIMO_IMOVEIS_BAIRRO, escolher_campus, indice_custo_beneficio, resumo_por_bairro
@@ -19,9 +20,11 @@ ORDENACAO = {
     "Menor aluguel total": ("total_mensal", True),
     "Mais perto do campus": ("distancia_km", True),
     "Maior área": ("area_m2", False),
+    "Novidades primeiro": ("novidade", False),  # novos ou que baixaram de preço na última semana
 }
 
-imoveis = carregar_imoveis()
+historico = carregar_historico()  # None se não der para baixar agora: o painel funciona sem ele
+imoveis = marcar_novidades(carregar_imoveis(), historico)
 escolhas = barra_lateral(imoveis)
 df = escolher_campus(aplicar_filtros(imoveis, escolhas.filtros), escolhas.campus)
 df = df.assign(indice=indice_custo_beneficio(df, escolhas.pesos))
@@ -38,6 +41,7 @@ if df.empty:
 
 indicadores(df)
 destaque(resumo)
+novidades(df, historico_carregado=historico is not None)
 
 with st.expander("Como ler este painel", icon=":material/help:"):
     st.markdown(f"""
