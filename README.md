@@ -53,7 +53,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   </a>
 </p> 
 
-**Observação:** Ainda falta adicionar dados de mais bairros ao sistema, porém o programa já funciona para boa parte dos bairros da região.  
+**Observação:** A coleta cobre todos os aluguéis de São Carlos na imobiliária; o painel abre focado na região universitária, e um filtro mostra a cidade toda.  
   
 ## **Funcionalidades**
 
@@ -61,17 +61,15 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 ✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **apartamentos e casas em bairros próximos à USP e UFSCar, com valor total de até R$ 8000, pensando em desde quem procura morar em condomínios (sozinho ou grupo), até aqueles que procuram novas casas para suas Repúblicas.** 
   
-✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis, valor médio, mínimo e máximo) em um **mapa interativo que pinta a área de cada bairro**, com os contornos vindos do OpenStreetMap.  
-  
-✔️ `Filtros` - Permite a filtragem do perfil de imóvel desejado pela área (região universitária ou cidade toda), tipo, bairro, nº de dormitórios e faixa de preço.  
+✔️ `Custo-benefício` - Para cada imóvel: **custo por dormitório** (quanto cada morador pagaria dividindo o imóvel), **preço por m²**, **distância** até a USP ou a UFSCar e um **índice de custo-benefício** de 0 a 100 com pesos ajustáveis (veja [Métricas de custo-benefício](#métricas-de-custo-benefício)).  
 
-✔️ `Tabela` - Conforme o filtro aplicado, exibe em uma tabela os detalhes de todos os imóveis por bairro (Link do anúncio, valor do aluguel, condomínio, nº de dormitórios, etc.).  
+✔️ `Mapa` - Pinta a área de cada bairro pela métrica escolhida (índice, custo por dormitório, aluguel total, preço por m² ou oferta), com os contornos vindos do OpenStreetMap. Clicar num bairro mostra os imóveis dele.  
   
-<img width="1033" height="431" alt="Screenshot_4" src="https://github.com/user-attachments/assets/9475e134-3a95-466f-b2a9-fc132ddfd75f" />
+✔️ `Filtros` - Campus onde você estuda, área (região universitária ou cidade toda), tipo, nº de dormitórios, faixa de preço e imóveis reservados.  
 
+✔️ `Imóveis` - Cartões com foto, valores e índice de cada imóvel, ordenáveis (melhor custo-benefício, mais barato por dormitório, mais perto...), e a tabela completa com link para o anúncio.  
 
-  
-🟡 `Gráficos` - Segunda página com análises gráficas dos dados.
+✔️ `Gráficos` - Segunda página: custo por dormitório em cada bairro e a relação entre distância e preço.
   
 
 ## **Lógica de operação**
@@ -97,10 +95,12 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ├── 📂 .streamlit  
 │    └── 📄 config.toml  
 ├── 📂 app  
-│    ├── 📄 analises.py  
 │    ├── 📄 bairros.py  
 │    ├── 📄 dados.py  
-│    └── 📄 mapa.py   
+│    ├── 📄 formatacao.py  
+│    ├── 📄 interface.py  
+│    ├── 📄 mapa.py   
+│    └── 📄 metricas.py  
 ├── 📂 assets  
 ├── 📂 dados  
 │    ├── 📄 imoveis.csv  
@@ -131,7 +131,9 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
      └── 📄 test_*.py  
 ```
   
-`Home.py` - *Arquivo principal. Recebe e aplica os filtros solicitados pelo usuário, plota o mapa interativo e a tabela de detalhamento dos imóveis*  
+`Home.py` - *Página principal: indicadores, mapa, ranking dos bairros e os imóveis*  
+
+`pages/Gráficos.py` - *Segunda página, com os gráficos*  
 
 `requirements.txt` / `requirements-scraper.txt` / `requirements-dev.txt` - *Dependências do dashboard (usadas pelo Streamlit Cloud), do scraper (usadas pelo GitHub Actions) e de desenvolvimento (testes), separadas para cada ambiente instalar só o que precisa*
 
@@ -141,13 +143,17 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `.streamlit/config.toml` - *Arquivo que contém as settings de personalização do App Streamlit (cores, fontes, tamanhos, etc.)*
 
-`app/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
-  
 `app/bairros.py` - *Lê os contornos dos bairros, unifica os nomes e define a região universitária (bairros que chegam a até 2,2 km da USP ou da UFSCar)*  
   
-`app/dados.py` - *Lê o CSV do scraper e o deixa no formato do dashboard (região universitária ou cidade toda, teto de R$ 8000)*  
+`app/dados.py` - *Lê o CSV do scraper (só imóveis residenciais com total de até R$ 8000) e aplica os filtros*  
+
+`app/metricas.py` - *Calcula custo por dormitório, preço por m², distância ao campus, índice de custo-benefício e o resumo por bairro*  
+
+`app/formatacao.py` - *Escreve os números no formato brasileiro (R$ 1.234, 2,3 km)*  
+
+`app/interface.py` - *Peças da interface usadas pelas duas páginas: barra lateral, indicadores, ranking e cartões*  
   
-`app/mapa.py` - *Contém a função que cria o mapa e pinta cada bairro conforme a métrica escolhida*  
+`app/mapa.py` - *Cria o mapa e pinta cada bairro conforme a métrica escolhida*  
 
 `dados/geo/` - *Contornos dos bairros e as correções manuais (veja [Mapa dos bairros](#mapa-dos-bairros))*  
 
@@ -197,6 +203,17 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 | `foto_url` | Primeira foto do anúncio |
 | `coletado_em` | Data da coleta |
   
+
+## **Métricas de custo-benefício**
+
+| Métrica | Como é calculada | Por que importa |
+|---|---|---|
+| Custo por dormitório | total por mês (aluguel + condomínio + IPTU) ÷ nº de dormitórios | É o que cada morador pagaria dividindo o imóvel: compara de forma justa uma kitnet e uma casa de república |
+| Preço por m² | total por mês ÷ área útil (ou construída, quando o site só informa essa) | Mostra quanto espaço o dinheiro compra |
+| Distância | em linha reta, do bairro até o campus escolhido | O site não informa o endereço dos imóveis, então todos os imóveis de um bairro têm a mesma distância |
+| Índice custo-benefício | média ponderada das três notas acima, de 0 a 100 | Em cada critério, o melhor imóvel da tela ganha nota 100 e o pior, 0 (pela posição no ranking, para um anúncio fora da curva não achatar os outros). Os pesos são ajustáveis na barra lateral |
+
+O índice compara os imóveis **que estão na tela** entre si, por isso muda quando os filtros mudam. No mapa e no ranking, cada bairro mostra a **mediana** dos seus imóveis, e o ranking só inclui bairros com pelo menos 3 imóveis. Imóveis só comerciais ficam de fora, e os reservados aparecem apenas se o filtro pedir.
 
 ## **Mapa dos bairros**
 
