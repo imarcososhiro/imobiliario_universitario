@@ -1,0 +1,4 @@
+# Dependências do scraper (instaladas pelo GitHub Actions)
+pandas==2.3.3
+selenium==4.38.0
+webdriver-manager==4.0.2
