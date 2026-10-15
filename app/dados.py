@@ -1,7 +1,7 @@
 # Carrega o CSV gerado pelo scraper e deixa no formato que o dashboard usa
 import os
 import pandas as pd
-from app.coord_bairros import Buscar_coords, Nome_padrao
+from app.bairros import Na_regiao_universitaria, Nome_padrao
 
 CAMINHO_CSV = os.path.join(os.path.dirname(__file__), '..', 'dados', 'imoveis.csv')
 VALOR_MAXIMO = 8000 # Teto do projeto para o valor total (aluguel + condomínio + IPTU)
@@ -25,17 +25,16 @@ COLUNAS_EXIBICAO = {
 # Kitnets e studios às vezes vêm sem nº de dormitórios no site, mas têm um cômodo
 SUBTIPOS_DE_UM_DORMITORIO = 'kitchnet|kitnet|studio|flat'
 
-def Carregar_imoveis(caminho=CAMINHO_CSV):
+def Carregar_imoveis(caminho=CAMINHO_CSV, so_regiao_universitaria=True):
     df = pd.read_csv(caminho)
-
-    # O scraper coleta a cidade toda; por enquanto o mapa mostra só a região
-    # universitária, que são os bairros com coordenada cadastrada
-    na_regiao = df['bairro'].map(lambda bairro: Buscar_coords(bairro) is not None)
-    # Sem total (aluguel "Consulte-nos") não dá pra comparar preço
-    com_total = df['total_mensal'].notna() & (df['total_mensal'] <= VALOR_MAXIMO)
-    df = df[na_regiao & com_total].copy()
-
     df['bairro'] = df['bairro'].map(Nome_padrao)
+
+    # Sem total (aluguel "Consulte-nos") não dá pra comparar preço
+    filtro = df['total_mensal'].notna() & (df['total_mensal'] <= VALOR_MAXIMO)
+    if so_regiao_universitaria:
+        filtro &= df['bairro'].map(Na_regiao_universitaria)
+    df = df[filtro].copy()
+
     um_comodo = df['subtipo'].str.lower().str.contains(SUBTIPOS_DE_UM_DORMITORIO, na=False)
     df.loc[um_comodo & df['dormitorios'].isna(), 'dormitorios'] = 1
 

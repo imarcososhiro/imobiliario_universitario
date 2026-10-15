@@ -1,9 +1,16 @@
 import os
 import folium
 import branca.colormap as cm
+from app.bairros import RODOVIARIA, UFSCAR, USP, Buscar_contorno
 
 # Caminho absoluto da pasta de imagens, pra funcionar independente de onde o app é executado
 PASTA_ASSETS = os.path.join(os.path.dirname(__file__), '..', 'assets')
+
+# Explicação no tooltip dos bairros cujo contorno não veio pronto do OpenStreetMap
+AVISO_CONTORNO = {
+    'enderecos': 'Contorno estimado pelos endereços do bairro no OpenStreetMap',
+    'aproximado': 'Contorno aproximado (o bairro só tem um ponto no OpenStreetMap)',
+}
 
 # Cria o mapa com os dados
 def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
@@ -13,7 +20,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     if analise == 'Media':
         legenda = 'Média de valores por bairro'
     elif analise == 'Quantidade':
-        legenda = 'Quantidade de apartamentos por bairro'
+        legenda = 'Quantidade de imóveis por bairro'
 
     # Definindo valor máximo e mínimo da análise pra definir os extremos do degradê de cores
     valor_minimo = df_infos[analise].min()
@@ -36,35 +43,35 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     escala_cores.caption = legenda
     mapa.add_child(escala_cores)
 
-    # Função que cria o círculo dos bairros em degradê
-    def Circulo(coordenada, escala_cores, html, mapa):
-        folium.CircleMarker(
-            location=coordenada,
-            radius=20,
-            color=escala_cores(info_cor),
-            stroke=False,
-            fill=True,
-            fill_color=escala_cores(info_cor),
-            fill_opacity=0.8,
-            opacity=1,
-            tooltip=html,
+    # Função que pinta a área do bairro com a cor do degradê
+    def Area_bairro(contorno, cor, html, mapa):
+        folium.GeoJson(
+            contorno,
+            style_function=lambda feature: {'fillColor': cor, 'color': cor, 'weight': 1, 'fillOpacity': 0.65},
+            highlight_function=lambda feature: {'weight': 3, 'fillOpacity': 0.85},
+            tooltip=folium.Tooltip(html),
         ).add_to(mapa)
 
-    # Criando círculos bairro por bairro (iterando linha por linha)
+    # Pintando os bairros um por um (iterando linha por linha)
     for index,linha in df_infos.iterrows():
-        info_cor = linha[analise] # Valor da análise escolhida do bairro, pra definir a cor dele no degradê
-        coordenada = (linha['Latitude'],linha['Longitude']) # Coordenada do bairro
+        contorno = Buscar_contorno(linha['Bairro'])
+        if contorno is None: # Bairro sem contorno no mapa: aparece só na tabela
+            continue
+        cor = escala_cores(linha[analise]) # Cor do bairro no degradê, conforme a análise escolhida
 
         # Formatações html pra deixar os popups mais bonitos
         html_texto = f"""
             <h4 style='margin-bottom:5px;'>{linha['Bairro']}</h4>
             <strong>Média:</strong> R$ {linha['Media']}<br>
-            <strong>Apartamentos disponíveis:</strong> {linha['Quantidade']}<br>
+            <strong>Imóveis disponíveis:</strong> {linha['Quantidade']}<br>
             <strong>Valor mínimo:</strong> R$ {linha['Min']}<br>
             <strong>Valor máximo:</strong> R$ {linha['Max']}
             """
+        aviso = AVISO_CONTORNO.get(contorno['properties']['origem'])
+        if aviso:
+            html_texto += f"<br><em style='font-size:11px;'>{aviso}</em>"
 
-        Circulo(coordenada, escala_cores, html_texto, mapa)
+        Area_bairro(contorno, cor, html_texto, mapa)
 
 
     # Add logos da USP e da UFSCar nas respectivas localizações
@@ -77,7 +84,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     )
 
     folium.Marker(
-        location=(-22.006213906979283, -47.89752552863632),
+        location=USP,
         icon=icone_usp_mapa,
         popup='USP CAASO',
         tooltip='Universidade de São Paulo (USP)'
@@ -92,7 +99,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     )
 
     folium.Marker(
-        location=(-21.982364333434838, -47.87966644394043),
+        location=UFSCAR,
         icon=icone_ufscar_mapa,
         popup='UFSCar',
         tooltip='Universidade Federal de São Carlos (UFSCar)'
@@ -109,7 +116,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     )
 
     folium.Marker(
-        location=(-22.00521597624045, -47.88955145780041),
+        location=RODOVIARIA,
         icon=icone_rodoviaria_mapa,
         popup='Rodoviária de São Carlos',
         tooltip='Rodoviária de São Carlos'
