@@ -11,6 +11,9 @@ venv/
 # Streamlit
 .streamlit/secrets.toml
 
+# Cópia local do branch `data` (histórico em Parquet), usada pelo workflow e pelo backfill
+historico-data/
+
 # Sistema
 .DS_Store
 Thumbs.db
