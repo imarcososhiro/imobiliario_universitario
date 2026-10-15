@@ -2,36 +2,63 @@ name: Atualizacao de banco de dados imobiliarios
 
 on:
   schedule:
-    - cron: "0 21 * * *" 
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Evita duas execuções simultâneas brigando pelo push do CSV
+concurrency:
+  group: atualizar-dados
+  cancel-in-progress: false
+
 jobs:
   atualizar_csv:
-    runs-on: ubuntu-latest
+    # Versão fixa: o ubuntu-latest passa a ser o Ubuntu 26 a partir de 19/10/2026
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
 
     steps:
       - name: Checkout do repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
         with:
-          persist-credentials: true
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-scraper.txt
 
-      - name: Instalar requirements e driver
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install webdriver-manager
+      - name: Instalar dependências do scraper
+        run: pip install -r requirements-scraper.txt
 
+      # Paliativo até o scraper novo (Fase 1): falhas temporárias do site
+      # ganham até 3 tentativas, cada uma limitada a 25 min
       - name: Rodar o scraper
-        run: python scripts/web_scraping.py
+        run: |
+          for tentativa in 1 2 3; do
+            echo "::group::Tentativa $tentativa"
+            if timeout 25m python -m scraper.cardinali; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "::warning::Tentativa $tentativa do scraper falhou"
+            sleep 120
+          done
+          echo "::error::Scraper falhou nas 3 tentativas"
+          exit 1
 
       - name: Commit e push do CSV atualizado
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git add dados/dados_imoveis.csv || echo "Nada pra commitar"
-          git commit -m "Atualização de dados automática" || echo "Sem mudanças pra commitar"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add dados/dados_imoveis.csv
+          if git diff --cached --quiet; then
+            echo "Sem mudanças nos dados"
+            exit 0
+          fi
+          git commit -m "Atualização de dados automática"
           git pull --rebase origin main
           git push origin main

@@ -1,4 +1,4 @@
-from scripts.coord_bairros import Buscar_coords
+from app.coord_bairros import Buscar_coords
 
 
 '''

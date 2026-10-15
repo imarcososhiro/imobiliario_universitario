@@ -23,7 +23,11 @@ cd imobiliario_universitario
 pip install -r requirements.txt
 streamlit run Home.py
   ```
-#### ***• Para atualizar o banco de dados manualmente, rode o script ```web_scraping.py```, na pasta scripts (ele roda em segundo plano)***
+#### ***• Para atualizar o banco de dados manualmente (o scraper roda em segundo plano e precisa do Google Chrome instalado)***
+```bash
+pip install -r requirements-scraper.txt
+python -m scraper.cardinali
+  ```
 
 ## **Descrição**  
 Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões próximas à USP e UFSCar, na cidade de São Carlos/SP, para exibí-los por meio de um mapa interativo. Assim, pode-se analisar os bairros com melhor valor e oferta de imóveis para um ou mais estudantes morarem, permitindo filtrar pelo tipo de imóvel, bairro, nº de dormitórios, e faixa de preço.  
@@ -71,38 +75,49 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ```bash
 📂 imobiliario_universitario  
 ├── 📄 Home.py
+├── 📄 requirements.txt
+├── 📄 requirements-scraper.txt
 │
+├── 📂 .github/workflows  
+│    └── 📄 main.yml  
 ├── 📂 .streamlit  
 │    └── 📄 config.toml  
+├── 📂 app  
+│    ├── 📄 __init__.py  
+│    ├── 📄 analises.py  
+│    ├── 📄 coord_bairros.py  
+│    └── 📄 mapa.py   
+├── 📂 assets  
 ├── 📂 dados  
 │    └── 📄 dados_imoveis.csv  
 ├── 📂 pages  
 │    └── 📄 Gráficos.py  
-└── 📂 scripts  
+└── 📂 scraper  
      ├── 📄 __init__.py  
-     ├── 📄 analises.py  
-     ├── 📄 coord_bairros.py  
-     ├── 📄 mapa.py   
-     └── 📄 web_scraping.py  
+     └── 📄 cardinali.py  
 ```
   
 `Home.py` - *Arquivo principal. Recebe e aplica os filtros solicitados pelo usuário, plota o mapa interativo e a tabela de detalhamento dos imóveis*  
 
+`requirements.txt` / `requirements-scraper.txt` - *Dependências do dashboard (usadas pelo Streamlit Cloud) e do scraper (usadas pelo GitHub Actions), separadas para cada ambiente instalar só o que precisa*
+
+`.github/workflows/main.yml` - *Agendamento diário do scraper no GitHub Actions e commit do CSV atualizado*
+
 `.streamlit/config.toml` - *Arquivo que contém as settings de personalização do App Streamlit (cores, fontes, tamanhos, etc.)*
+
+`app/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
+  
+`app/coord_bairros.py` - *Contém a função que retorna a coordenada do bairro pelo seu nome*  
+  
+`app/mapa.py` - *Contém a função que cria e clusteriza o mapa*  
+
+`assets/` - *Imagens usadas no dashboard (logos e ícones do mapa)*
 
 `dados/dados_imoveis.csv` - *Banco de dados gerado pelo Web Scraper*
 
 `pages/Gráficos.py` - *Segunda página do projeto (Em desenvolvimento)*
-
-`scripts/__init__.py` - *Script para o Home.py identificar que há arquivos .py na pasta scripts*
-
-`scripts/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
   
-`scripts/coord_bairros.py` - *Contém a função que retorna a coordenada do bairro pelo seu nome*  
-  
-`scripts/mapa.py` - *Contém a função que cria e clusteriza o mapa*  
-  
-`scripts/web_scraping.py` - *Contém a função que faz o Scraping de dados e os exporta em CSV*  
+`scraper/cardinali.py` - *Faz o Scraping de dados do site da Cardinali e os exporta em CSV*  
   
 
 ## **Tecnologias Utilizadas**

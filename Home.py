@@ -1,8 +1,8 @@
 import streamlit as st
 import streamlit_folium
 import pandas as pd
-from scripts.mapa import Criar_Mapa
-from scripts.analises import Tirar_infos_bairros # Temporário
+from app.mapa import Criar_Mapa
+from app.analises import Tirar_infos_bairros # Temporário
 import os
 from datetime import datetime
 from datetime import timedelta
@@ -148,7 +148,7 @@ try:
             )
 except:
     st.header("Não há imóveis com esses filtros")
-    st.image('nopuedeser.jpg')
+    st.image(os.path.join(diretorio_atual, 'assets', 'nopuedeser.jpg'))
 
 
 # Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link

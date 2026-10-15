@@ -1,5 +1,9 @@
+import os
 import folium
 import branca.colormap as cm
+
+# Caminho absoluto da pasta de imagens, pra funcionar independente de onde o app é executado
+PASTA_ASSETS = os.path.join(os.path.dirname(__file__), '..', 'assets')
 
 # Cria o mapa com os dados
 def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
@@ -64,8 +68,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
 
 
     # Add logos da USP e da UFSCar nas respectivas localizações
-    # NOTA: Depois vou colocar o caminho das imagens no código pra não ter que duplicar as imagens em pastas diferentes
-    icone_usp = 'usp-logo.png'
+    icone_usp = os.path.join(PASTA_ASSETS, 'usp-logo.png')
     icone_usp_mapa = folium.CustomIcon(
         icon_image=icone_usp,
         icon_size=(70, 70),
@@ -80,7 +83,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
         tooltip='Universidade de São Paulo (USP)'
     ).add_to(mapa)
 
-    icone_ufscar = 'ufscar-logo.png'
+    icone_ufscar = os.path.join(PASTA_ASSETS, 'ufscar-logo.png')
     icone_ufscar_mapa = folium.CustomIcon(
         icon_image=icone_ufscar,
         icon_size=(90, 90),
@@ -97,7 +100,7 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     #mapa.save('mapa.html')
     #webbrowser.open('mapa.html') #Comandos pra teste do script também
 
-    icone_rodoviaria = 'icone-rodoviaria.png'
+    icone_rodoviaria = os.path.join(PASTA_ASSETS, 'icone-rodoviaria.png')
     icone_rodoviaria_mapa = folium.CustomIcon(
         icon_image=icone_rodoviaria,
         icon_size=(45, 45),
