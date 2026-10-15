@@ -23,6 +23,13 @@ jobs:
       - name: Checkout do repositório
         uses: actions/checkout@v7
 
+      # O histórico (um Parquet por dia) fica no branch `data`, separado do código
+      - name: Checkout do histórico (branch data)
+        uses: actions/checkout@v7
+        with:
+          ref: data
+          path: historico-data
+
       - name: Configurar Python
         uses: actions/setup-python@v7
         with:
@@ -63,3 +70,18 @@ jobs:
           git commit -m "Atualização de dados automática"
           git pull --rebase origin main
           git push origin main
+
+      - name: Guardar snapshot do dia no histórico
+        run: |
+          arquivo=$(python -m historico.snapshot dados/imoveis.csv --destino historico-data/snapshots)
+          cd historico-data
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add snapshots
+          if git diff --cached --quiet; then
+            echo "Snapshot igual ao já guardado"
+            exit 0
+          fi
+          git commit -m "Snapshot $(basename "$arquivo" .parquet)"
+          git pull --rebase origin data
+          git push origin data

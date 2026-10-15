@@ -115,23 +115,31 @@ def listar_urls(cliente) -> tuple[list[str], int]:
     return list(urls), anunciados
 
 
-def extrair_imovel(html: str, url: str, coletado_em: str | None = None) -> Imovel:
-    """Lê a página de um imóvel. Levanta ErroDeExtracao se o formato não for o esperado."""
+def partes_da_url(url: str) -> tuple[str, str, str, int]:
+    """Lê (tipo, subtipo, bairro, código) de /alugar/<cidade>/<tipo>/<subtipo>/<bairro>/<código>."""
     partes = urlsplit(url).path.strip("/").split("/")
-    # alugar / <cidade> / <tipo> / <subtipo> / <bairro> / <código>
     if len(partes) != 6 or not partes[-1].isdigit():
         raise ErroDeExtracao(f"URL fora do padrão esperado: {url}")
     _, _, tipo, subtipo, bairro, codigo = partes
+    return tipo, subtipo, bairro, int(codigo)
+
+
+def extrair_imovel(html: str, url: str, coletado_em: str | None = None) -> Imovel:
+    """Lê a página de um imóvel. Levanta ErroDeExtracao se o formato não for o esperado."""
+    tipo, subtipo, bairro, codigo = partes_da_url(url)
+    caminho = urlsplit(url).path.rstrip("/")
+    caminho_bairro = caminho.rsplit("/", 1)[0]
+    caminho_subtipo = caminho_bairro.rsplit("/", 1)[0]
 
     soup = BeautifulSoup(html, "lxml")
     imovel = Imovel(
-        codigo=int(codigo),
+        codigo=codigo,
         fonte=FONTE,
         url=url,
         tipo=tipo,
         # Os links logo abaixo do título trazem os nomes com acento, ex.: "Vila Monteiro (Gleba I)"
-        subtipo=_texto_do_link(soup, "/" + "/".join(partes[:4]), padrao=subtipo),
-        bairro=_texto_do_link(soup, "/" + "/".join(partes[:5]), padrao=bairro),
+        subtipo=_texto_do_link(soup, caminho_subtipo, padrao=subtipo),
+        bairro=_texto_do_link(soup, caminho_bairro, padrao=bairro),
         coletado_em=coletado_em,
     )
     _ler_valores(soup, imovel)

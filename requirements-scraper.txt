@@ -1,4 +1,5 @@
-# Dependências do scraper (instaladas pelo GitHub Actions)
+# Dependências da coleta diária (instaladas pelo GitHub Actions)
 beautifulsoup4==4.15.0
+duckdb==1.5.6  # snapshots em Parquet e consultas do histórico
 httpx==0.28.1
 lxml==6.1.3

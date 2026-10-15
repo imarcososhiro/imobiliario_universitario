@@ -33,6 +33,12 @@ python -m scraper
 pip install -r requirements-dev.txt
 python -m pytest
   ```
+#### ***• Para explorar o histórico diário (fica no branch `data`)***
+```bash
+git fetch origin data
+git worktree add historico-data data
+python -m historico.consultas historico-data/snapshots
+  ```
 
 ## **Descrição**  
 Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões próximas à USP e UFSCar, na cidade de São Carlos/SP, para exibí-los por meio de um mapa interativo. Assim, pode-se analisar os bairros com melhor valor e oferta de imóveis para um ou mais estudantes morarem, permitindo filtrar pelo tipo de imóvel, bairro, nº de dormitórios, e faixa de preço.  
@@ -71,9 +77,10 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ## **Lógica de operação**
 1. Utilizando as bibliotecas httpx e BeautifulSoup, foi feito um Web Scraper que percorre as listagens de aluguel de São Carlos no site da imobiliária mais famosa da cidade, lê a página de cada imóvel (valores, características e dados estruturados JSON-LD) e guarda tudo num arquivo CSV. Como o site é renderizado no servidor, não é preciso abrir um navegador.  
 2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias. Antes de gravar, ele confere se o resultado faz sentido (taxa de falhas e queda brusca na quantidade de imóveis): se algo parecer quebrado, o CSV anterior é mantido.  
-3. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa clusterizado e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado.  
-4. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
-5. A cada filtro aplicado, todas as métricas e exibições são refeitas e reexibidas conforme a solicitação.  
+3. A coleta de cada dia também é guardada como um arquivo Parquet no branch `data`, formando um histórico desde nov/2025 (os meses anteriores à mudança foram reconstruídos a partir das versões do CSV no git). Com DuckDB, dá para consultar todos os dias de uma vez em SQL: imóveis novos, que saíram do site, mudanças de preço e evolução por bairro.  
+4. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa clusterizado e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado.  
+5. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
+6. A cada filtro aplicado, todas as métricas e exibições são refeitas e reexibidas conforme a solicitação.  
 
 ## **Estrutura do projeto**
 ### **Descrição simples dos principais 📄 arquivos do sistema**
@@ -97,6 +104,10 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ├── 📂 assets  
 ├── 📂 dados  
 │    └── 📄 imoveis.csv  
+├── 📂 historico  
+│    ├── 📄 backfill.py  
+│    ├── 📄 consultas.py  
+│    └── 📄 snapshot.py  
 ├── 📂 pages  
 │    └── 📄 Gráficos.py  
 ├── 📂 scraper  
@@ -142,6 +153,12 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 `scraper/download.py` - *Baixa as páginas, tentando de novo quando o site falha temporariamente*  
 
 `scraper/modelo.py` - *Formato comum dos imóveis, igual para qualquer imobiliária*  
+
+`historico/snapshot.py` - *Converte a coleta do dia num arquivo Parquet com esquema fixo (`snapshots/AAAA/AAAA-MM-DD.parquet` no branch `data`)*  
+
+`historico/backfill.py` - *Reconstrói o histórico a partir das versões do CSV guardadas no git, convertendo o formato antigo*  
+
+`historico/consultas.py` - *Consultas em SQL (DuckDB) sobre todos os dias: resumo por imóvel, mudanças de preço, novidades do dia e série por bairro*  
 
 `tests/` - *Testes automatizados com páginas reais salvas em `tests/fixtures`. Para salvar uma página nova: `python -m tests.salvar_fixture <url> <nome>`*  
 
