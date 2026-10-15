@@ -1,6 +1,7 @@
 # Dependências do dashboard (instaladas pelo Streamlit Cloud)
 # O scraper tem as suas próprias em requirements-scraper.txt
 branca==0.8.2
+duckdb==1.5.6  # consultas ao histórico (mesma versão de requirements-scraper.txt)
 folium==0.20.0
 pandas==2.3.3
 streamlit==1.51.0

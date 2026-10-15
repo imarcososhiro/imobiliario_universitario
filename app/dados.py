@@ -21,8 +21,17 @@ def carregar_imoveis(caminho: Path = CAMINHO_CSV) -> pd.DataFrame:
 
     Fica em cache por 1 hora: o CSV só muda uma vez por dia.
     """
-    df = pd.read_csv(caminho)
-    df["bairro"] = df["bairro"].map(padronizar_bairro)
+    df = preparar_imoveis(pd.read_csv(caminho))
+    df["coletado_em"] = pd.to_datetime(df["coletado_em"]).dt.date
+    return df
+
+
+def preparar_imoveis(df: pd.DataFrame) -> pd.DataFrame:
+    """Limpa uma tabela no formato de scraper/modelo.py e acrescenta as métricas.
+
+    Serve tanto para o CSV do dia quanto para o histórico, que assim passam pelas mesmas regras.
+    """
+    df = df.assign(bairro=df["bairro"].map(padronizar_bairro))
     # Sem total (aluguel "Consulte-nos") não dá pra comparar; imóvel só comercial não é moradia
     df = df[df["total_mensal"].notna() & (df["total_mensal"] <= VALOR_MAXIMO)
             & (df["finalidade"].fillna("") != "Comercial")].copy()
@@ -31,7 +40,6 @@ def carregar_imoveis(caminho: Path = CAMINHO_CSV) -> pd.DataFrame:
     df.loc[um_comodo & df["dormitorios"].isna(), "dormitorios"] = 1
     df["regiao_universitaria"] = df["bairro"].map(na_regiao_universitaria)
     df["reservado"] = df["situacao"].fillna("").str.upper().str.startswith("RESERVADO")
-    df["coletado_em"] = pd.to_datetime(df["coletado_em"]).dt.date
     return adicionar_metricas(df)
 
 
