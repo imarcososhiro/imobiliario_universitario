@@ -13,6 +13,8 @@ def test_nome_padrao_junta_grafias_do_mesmo_bairro():
     assert Nome_padrao("Jardim Hikari") == "Jardim Hikare"                    # pela tabela de aliases
     assert Nome_padrao("Parque Arnold Schimidt") == "Parque Arnold Schmidt"   # idem
     assert Nome_padrao("Bairro Que Não Existe") == "Bairro Que Não Existe"
+    # Bairro ainda sem contorno: as grafias também se juntam pelo nome da tabela
+    assert Nome_padrao("Loteamento Habitacional Sao Carlos I") == "Loteamento Habitacional São Carlos I"
 
 
 def test_contorno_e_coordenadas():
@@ -28,7 +30,8 @@ def test_distancia_entre_usp_e_ufscar():
 def test_regiao_universitaria():
     assert Na_regiao_universitaria("Centro")
     assert Na_regiao_universitaria("Parque Arnold Schmidt")
-    assert not Na_regiao_universitaria("Swiss Park Residencial")  # ~2,9 km da USP
+    assert Na_regiao_universitaria("Vila Prado")                  # a borda chega a ~2,2 km da USP
+    assert not Na_regiao_universitaria("Swiss Park Residencial")  # a borda fica a ~2,7 km
     assert not Na_regiao_universitaria("Bairro Que Não Existe")
 
 

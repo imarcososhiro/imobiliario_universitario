@@ -2,10 +2,12 @@
 from collections import Counter
 
 import pytest
-from shapely.geometry import Point, box, shape
+from shapely.geometry import LineString, Point, box, shape
 
 from geo import osm
-from geo.gerar import Projecao, aproximar, contorno_por_enderecos, gerar
+from geo.gerar import (Projecao, ajustar_as_quadras, aproximar, contorno_por_enderecos, distancia_campus_km,
+                       gerar, montar_quadras)
+from geo.lugares import USP
 from geo.nomes import carregar_aliases, nome_padrao, normalizar
 
 LAT, LON = -22.0, -47.9  # um ponto qualquer em São Carlos
@@ -19,8 +21,14 @@ def caminho(nome, lon, lat, lado=0.01, fechado=True, **tags):
             "geometry": [{"lon": x, "lat": y} for x, y in pontos]}
 
 
-def no(nome, lon, lat):
-    return {"type": "node", "tags": {"place": "suburb", "name": nome}, "lon": lon, "lat": lat}
+def no(nome, lon, lat, place="suburb"):
+    return {"type": "node", "tags": {"place": place, "name": nome}, "lon": lon, "lat": lat}
+
+
+def area_residencial(nome, lon, lat, lado=0.005):
+    elemento = caminho(nome, lon, lat, lado=lado, landuse="residential")
+    del elemento["tags"]["place"]
+    return elemento
 
 
 def enderecos(bairro, lon, lat, quantidade=25, passo=0.0005):
@@ -60,13 +68,16 @@ def test_ler_elementos():
             {"type": "way", "role": "inner", "geometry": interno},
         ]},
         no("Centro", LON, LAT),
+        no("Água Vermelha", LON + 0.1, LAT, place="village"),
+        area_residencial("Condomínio Teste", LON, LAT),
         *enderecos("Centro", LON, LAT, quantidade=4),
     ]}
-    poligonos, pontos, enderecos_por_bairro = osm.ler_elementos(dados)
-    assert set(poligonos) == {"Jardim Teste", "Parque Com Buraco"}
-    assert poligonos["Parque Com Buraco"].area == pytest.approx(0.02 ** 2 - 0.005 ** 2)
-    assert set(pontos) == {"Centro"}
-    assert len(enderecos_por_bairro["Centro"]) == 4
+    elementos = osm.ler_elementos(dados)
+    assert set(elementos.poligonos) == {"Jardim Teste", "Parque Com Buraco"}
+    assert elementos.poligonos["Parque Com Buraco"].area == pytest.approx(0.02 ** 2 - 0.005 ** 2)
+    assert set(elementos.pontos) == {"Centro", "Água Vermelha"}
+    assert len(elementos.enderecos["Centro"]) == 4
+    assert set(elementos.residenciais) == {"Condomínio Teste"}
 
 
 def test_relacao_com_borda_dividida_em_dois_caminhos():
@@ -124,6 +135,51 @@ def test_aproximar_nao_invade_bairro_vizinho():
     assert contorno.bounds[0] > LON - 0.0072
 
 
+def test_distancia_campus_km_mede_ate_a_borda():
+    lat, lon = USP
+    assert distancia_campus_km(box(lon - 0.001, lat - 0.001, lon + 0.001, lat + 0.001)) == 0  # campus dentro
+    # Bairro que começa 0,01 grau (~1,03 km) a leste da USP e vai longe: conta a borda, não o meio
+    assert distancia_campus_km(box(lon + 0.01, lat - 0.001, lon + 0.05, lat + 0.001)) == pytest.approx(1.03, abs=0.02)
+
+
+def grade_de_ruas(colunas=4, linhas=4, passo=0.001):
+    """Ruas em grade (~100 m entre elas): formam colunas x linhas quarteirões de ~1 ha."""
+    verticais = [LineString([(LON + i * passo, LAT), (LON + i * passo, LAT + linhas * passo)]) for i in range(colunas + 1)]
+    horizontais = [LineString([(LON, LAT + j * passo), (LON + colunas * passo, LAT + j * passo)]) for j in range(linhas + 1)]
+    return verticais + horizontais
+
+
+def test_montar_quadras_descarta_areas_enormes():
+    fazenda = LineString([(LON + 0.1, LAT), (LON + 0.12, LAT), (LON + 0.12, LAT + 0.02),
+                          (LON + 0.1, LAT + 0.02), (LON + 0.1, LAT)])  # ~4 km²: não é quarteirão
+    quadras = montar_quadras(grade_de_ruas() + [fazenda])
+    assert len(quadras) == 16
+
+
+def test_ajustar_as_quadras_segue_as_ruas():
+    quadras = montar_quadras(grade_de_ruas())
+    # Cobre por inteiro as quadras das 2 primeiras colunas e linhas, e só 30% da 3ª coluna
+    contorno = box(LON, LAT, LON + 0.0023, LAT + 0.002)
+    ajustado = ajustar_as_quadras({"x": contorno}, quadras, ocupado=Point(0, 0).buffer(0.001))["x"]
+    assert ajustado.bounds == pytest.approx((LON, LAT, LON + 0.002, LAT + 0.002))
+    assert ajustado.area == pytest.approx(0.002 * 0.002)
+
+
+def test_ajustar_as_quadras_nao_pega_quadra_de_outro_bairro():
+    quadras = montar_quadras(grade_de_ruas())
+    outro_bairro = box(LON, LAT, LON + 0.001, LAT + 0.001)
+    contorno = box(LON, LAT, LON + 0.002, LAT + 0.002)
+    ajustado = ajustar_as_quadras({"x": contorno}, quadras, ocupado=outro_bairro)["x"]
+    assert ajustado.area == pytest.approx(3 * 0.001 * 0.001)
+    assert ajustado.intersection(outro_bairro).area == pytest.approx(0, abs=1e-12)
+
+
+def test_ajustar_as_quadras_mantem_contorno_pequeno_demais():
+    quadras = montar_quadras(grade_de_ruas())
+    pequeno = box(LON + 0.0001, LAT + 0.0001, LON + 0.0003, LAT + 0.0003)  # 4% de uma quadra
+    assert ajustar_as_quadras({"x": pequeno}, quadras, ocupado=Point(0, 0).buffer(0.001))["x"] == pequeno
+
+
 # --- geração completa ---------------------------------------------------------------------
 
 def test_gerar_ponta_a_ponta():
@@ -133,10 +189,13 @@ def test_gerar_ponta_a_ponta():
         no("Centro", LON, LAT),
         *enderecos("Centro", LON, LAT),
         no("Vila So Ponto", LON, LAT - 0.03),
+        area_residencial("Condomínio Com Imóveis", LON + 0.06, LAT),
+        area_residencial("Condomínio Sem Imóveis", LON + 0.08, LAT),
     ]}
     aliases = {normalizar("Jardim Teste Antigo"): "Jardim Teste"}
     desenho = box(LON + 0.03, LAT, LON + 0.035, LAT + 0.005)
-    no_site = Counter({"Jardim Teste Antigo": 3, "Centro": 5, "Vila Só Ponto": 1, "Bairro Sem Nada": 2})
+    no_site = Counter({"Jardim Teste Antigo": 3, "Centro": 5, "Vila Só Ponto": 1, "Bairro Sem Nada": 2,
+                       "Condomínio Com Imóveis": 1})
 
     features, sem_contorno = gerar(dados, aliases, {"Parque Desenhado": desenho}, {}, no_site)
     por_bairro = {f["properties"]["bairro"]: f for f in features}
@@ -146,10 +205,12 @@ def test_gerar_ponta_a_ponta():
         "Parque Desenhado": "manual",   # o desenho manual substitui o polígono do OSM
         "Centro": "enderecos",
         "Vila Só Ponto": "aproximado",  # a grafia com acento ganha da sem acento
+        "Condomínio Com Imóveis": "osm",  # área residencial só entra se tiver imóveis
     }
     assert shape(por_bairro["Parque Desenhado"]["geometry"]).area == pytest.approx(desenho.area, rel=0.01)
     centro = por_bairro["Centro"]["properties"]
     assert shape(por_bairro["Centro"]["geometry"]).contains(Point(centro["lon"], centro["lat"]))
+    assert centro["distancia_campus_km"] > 0
     assert sem_contorno == ["Bairro Sem Nada (2)"]
 
 

@@ -143,7 +143,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `app/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
   
-`app/bairros.py` - *Lê os contornos dos bairros, unifica os nomes e define a região universitária (bairros a até 2,5 km da USP ou da UFSCar)*  
+`app/bairros.py` - *Lê os contornos dos bairros, unifica os nomes e define a região universitária (bairros que chegam a até 2,2 km da USP ou da UFSCar)*  
   
 `app/dados.py` - *Lê o CSV do scraper e o deixa no formato do dashboard (região universitária ou cidade toda, teto de R$ 8000)*  
   
@@ -207,6 +207,10 @@ São Carlos não tem bairros oficializados em lei (por isso não aparece na malh
 | `osm` | Contorno desenhado no OpenStreetMap |
 | `enderecos` | O bairro só tem um ponto no OSM; o contorno envolve os endereços do OSM marcados com esse bairro (é o caso do Centro) |
 | `aproximado` | Sem endereços suficientes: a área em volta do ponto do bairro (até 700 m) que nenhum bairro vizinho ocupa |
+
+Os contornos calculados (`enderecos` e `aproximado`) são **ajustados às quadras**: o gerador monta os quarteirões a partir das ruas do OSM e troca cada contorno pela união das quadras que ele cobre em mais da metade, para que as bordas sigam as ruas. Alguns condomínios estão no OSM só como área residencial (`landuse=residential`); eles entram no mapa quando têm imóveis e nenhum outro contorno.
+
+A **região universitária** são os bairros que chegam a até 2,2 km da USP ou da UFSCar, medindo pela borda do bairro (campo `distancia_campus_km` do GeoJSON).
 | `manual` | Desenhado à mão em `dados/geo/desenhos_manuais.geojson` |
 
 **Como corrigir um bairro** (depois, rode `python -m geo.gerar` de novo):

@@ -3,11 +3,14 @@
 No OSM, a maioria dos bairros (loteamentos) de São Carlos é um polígono: um caminho
 fechado ("way") ou uma relação "multipolygon" formada por vários caminhos. Alguns,
 como o Centro, existem só como um ponto ("node"). Para esses, os endereços do OSM
-marcados com o bairro (tag addr:suburb) ajudam a desenhar um contorno.
+marcados com o bairro (tag addr:suburb) ajudam a desenhar um contorno. Alguns
+condomínios estão marcados como área residencial (landuse=residential) em vez de bairro.
+As ruas servem para ajustar os contornos calculados aos quarteirões.
 """
 import logging
 import re
 import time
+from typing import NamedTuple
 
 import httpx
 from shapely.geometry import LineString, Point, Polygon
@@ -19,7 +22,7 @@ log = logging.getLogger(__name__)
 
 # A Overpass recusa (HTTP 406) User-Agents que imitam navegador: aqui o projeto se identifica
 USER_AGENT = "imobiliario-universitario/1.0 (+https://github.com/imarcososhiro/imobiliario_universitario)"
-RODADAS = 3
+RODADAS = 4
 ESPERA_BASE_S = 30
 # O servidor principal costuma ficar lotado; os outros são espelhos públicos
 SERVIDORES = (
@@ -27,28 +30,38 @@ SERVIDORES = (
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
 )
-CONSULTA = """
+CIDADE = 'area["name"="São Carlos"]["boundary"="administrative"]["admin_level"="8"]->.cidade;'
+CONSULTA_BAIRROS = f"""
 [out:json][timeout:180];
-area["name"="São Carlos"]["boundary"="administrative"]["admin_level"="8"]->.cidade;
+{CIDADE}
 (
   way(area.cidade)["place"~"^(suburb|neighbourhood|quarter)$"];
   relation(area.cidade)["place"~"^(suburb|neighbourhood|quarter)$"];
-  node(area.cidade)["place"~"^(suburb|neighbourhood|quarter)$"];
+  node(area.cidade)["place"~"^(suburb|neighbourhood|quarter|village|hamlet)$"];
+  way(area.cidade)["landuse"="residential"]["name"][!"place"];
+  relation(area.cidade)["landuse"="residential"]["name"][!"place"];
 );
 out geom;
 nwr(area.cidade)["addr:suburb"][!"place"];
 out center tags;
 """
+# Ruas por onde passam carros: elas dividem a cidade em quarteirões
+CONSULTA_RUAS = f"""
+[out:json][timeout:180];
+{CIDADE}
+way(area.cidade)["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"];
+out geom;
+"""
 # Marcados como bairro no OSM, mas não são: quadras de condomínio e a própria cidade
 IGNORAR = re.compile(r"^(Quadra \w+|São Carlos)$")
 
 
-def baixar() -> dict:
+def baixar(consulta: str = CONSULTA_BAIRROS) -> dict:
     """Resposta da Overpass em JSON. Tenta cada servidor; se todos falharem, espera e repete."""
     for rodada in range(1, RODADAS + 1):
         for servidor in SERVIDORES:
             try:
-                resposta = httpx.post(servidor, data={"data": CONSULTA},
+                resposta = httpx.post(servidor, data={"data": consulta},
                                       headers={"User-Agent": USER_AGENT}, timeout=240)
                 resposta.raise_for_status()
                 return resposta.json()
@@ -63,6 +76,11 @@ def baixar() -> dict:
 
 def _coordenadas(geometria: list[dict]) -> list[tuple[float, float]]:
     return [(ponto["lon"], ponto["lat"]) for ponto in geometria]
+
+
+def ler_ruas(dados: dict) -> list[LineString]:
+    return [LineString(_coordenadas(elemento["geometry"])) for elemento in dados["elements"]
+            if elemento["type"] == "way" and len(elemento.get("geometry", [])) >= 2]
 
 
 def apenas_area(geometria: BaseGeometry) -> BaseGeometry | None:
@@ -99,24 +117,38 @@ def poligono_da_relacao(relacao: dict) -> BaseGeometry | None:
     return apenas_area(geometria)
 
 
-def ler_elementos(dados: dict) -> tuple[dict[str, BaseGeometry], dict[str, Point], dict[str, list[Point]]]:
-    """Separa a resposta da Overpass em polígonos, pontos e endereços, pelo nome do bairro."""
-    poligonos: dict[str, BaseGeometry] = {}
-    pontos: dict[str, Point] = {}
-    enderecos: dict[str, list[Point]] = {}
+class ElementosOSM(NamedTuple):
+    poligonos: dict[str, BaseGeometry]     # bairros desenhados (place=suburb, neighbourhood...)
+    pontos: dict[str, Point]               # bairros que são só um ponto
+    enderecos: dict[str, list[Point]]      # endereços marcados com o bairro (addr:suburb)
+    residenciais: dict[str, BaseGeometry]  # áreas residenciais com nome (landuse=residential)
+
+
+def ler_elementos(dados: dict) -> ElementosOSM:
+    """Separa a resposta da Overpass em polígonos, pontos, endereços e áreas residenciais, pelo nome."""
+    elementos = ElementosOSM({}, {}, {}, {})
     for elemento in dados["elements"]:
         tags = elemento.get("tags", {})
-        if "place" not in tags and tags.get("addr:suburb"):
+        nome = tags.get("name", "").strip()
+        tem_forma = "geometry" in elemento or "members" in elemento
+        if "place" in tags:
+            if not nome or IGNORAR.match(nome):
+                continue
+            if elemento["type"] == "node":
+                elementos.pontos[nome] = Point(elemento["lon"], elemento["lat"])
+                continue
+            destino = elementos.poligonos
+        elif tags.get("landuse") == "residential" and nome and tem_forma:
+            destino = elementos.residenciais
+        elif tags.get("addr:suburb"):
             posicao = elemento.get("center") or elemento
             if "lat" in posicao:
-                enderecos.setdefault(tags["addr:suburb"].strip(), []).append(Point(posicao["lon"], posicao["lat"]))
+                elementos.enderecos.setdefault(tags["addr:suburb"].strip(), []).append(
+                    Point(posicao["lon"], posicao["lat"]))
             continue
-        nome = tags.get("name", "").strip()
-        if not nome or IGNORAR.match(nome):
+        else:
             continue
-        if elemento["type"] == "node":
-            pontos[nome] = Point(elemento["lon"], elemento["lat"])
-            continue
+
         if elemento["type"] == "way":
             geometria = poligono_do_caminho(elemento)
         else:
@@ -124,5 +156,5 @@ def ler_elementos(dados: dict) -> tuple[dict[str, BaseGeometry], dict[str, Point
         if geometria is None or geometria.is_empty or geometria.area == 0:
             continue
         # O mesmo bairro às vezes está dividido em mais de um elemento
-        poligonos[nome] = unary_union([poligonos[nome], geometria]) if nome in poligonos else geometria
-    return poligonos, pontos, enderecos
+        destino[nome] = unary_union([destino[nome], geometria]) if nome in destino else geometria
+    return elementos
