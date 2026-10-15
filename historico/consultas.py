@@ -115,6 +115,21 @@ def serie_por_bairro(con) -> pd.DataFrame:
     """).df()
 
 
+def ultima_observacao_por_semana(con) -> pd.DataFrame:
+    """Uma linha por imóvel e semana (de segunda a domingo): como ele estava no último dia da semana.
+
+    Contar cada imóvel uma vez por semana, e não uma vez por dia, evita que os anúncios que
+    ficam muito tempo no site pesem mais numa mediana do que os que são alugados rápido.
+    """
+    return con.sql("""
+        SELECT date_trunc('week', coletado_em) AS semana, *
+        FROM snapshots
+        QUALIFY row_number() OVER (PARTITION BY date_trunc('week', coletado_em), fonte, codigo
+                                   ORDER BY coletado_em DESC) = 1
+        ORDER BY semana, fonte, codigo
+    """).df()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Mostra um resumo do histórico de imóveis.")
     parser.add_argument("pasta", type=Path, nargs="?", default=PASTA_PADRAO, help="pasta dos snapshots")
