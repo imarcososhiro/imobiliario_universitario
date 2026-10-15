@@ -67,9 +67,11 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 ✔️ `Filtros` - Campus onde você estuda, área (região universitária ou cidade toda), tipo, nº de dormitórios, faixa de preço e imóveis reservados.  
 
-✔️ `Imóveis` - Cartões com foto, valores e índice de cada imóvel, ordenáveis (melhor custo-benefício, mais barato por dormitório, mais perto...), e a tabela completa com link para o anúncio.  
+✔️ `Imóveis` - Cartões com foto, valores e índice de cada imóvel, ordenáveis (melhor custo-benefício, mais barato por dormitório, mais perto, novidades primeiro...), e a tabela completa com link para o anúncio.  
 
-✔️ `Gráficos` - Segunda página: custo por dormitório em cada bairro e a relação entre distância e preço.
+✔️ `Novidades` - Selos **Novo** (o imóvel apareceu no site nos últimos 7 dias) e **Baixou de preço** (o total por mês caiu nos últimos 7 dias, com o valor antigo riscado) nos cartões, e uma linha com quantos imóveis novos apareceram na semana (veja [Histórico no dashboard](#histórico-no-dashboard)).  
+
+✔️ `Gráficos` - Segunda página: custo por dormitório em cada bairro, a relação entre distância e preço e a **tendência dos aluguéis** semana a semana (custo por dormitório ou aluguel total), com a opção de comparar um bairro com a região.
   
 
 ## **Lógica de operação**
@@ -77,7 +79,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias. Antes de gravar, ele confere se o resultado faz sentido (taxa de falhas e queda brusca na quantidade de imóveis): se algo parecer quebrado, o CSV anterior é mantido.  
 3. A coleta de cada dia também é guardada como um arquivo Parquet no branch `data`, formando um histórico desde nov/2025 (os meses anteriores à mudança foram reconstruídos a partir das versões do CSV no git). Com DuckDB, dá para consultar todos os dias de uma vez em SQL: imóveis novos, que saíram do site, mudanças de preço e evolução por bairro.  
 4. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado. Os contornos dos bairros vêm do OpenStreetMap (veja [Mapa dos bairros](#mapa-dos-bairros)).  
-5. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
+5. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout. O dashboard também baixa o histórico do branch `data` para mostrar as novidades e a tendência dos preços (veja [Histórico no dashboard](#histórico-no-dashboard)).  
 6. A cada filtro aplicado, todas as métricas e exibições são refeitas e reexibidas conforme a solicitação.  
 
 ## **Estrutura do projeto**
@@ -98,6 +100,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 │    ├── 📄 bairros.py  
 │    ├── 📄 dados.py  
 │    ├── 📄 formatacao.py  
+│    ├── 📄 historico.py  
 │    ├── 📄 interface.py  
 │    ├── 📄 mapa.py   
 │    └── 📄 metricas.py  
@@ -151,6 +154,8 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `app/formatacao.py` - *Escreve os números no formato brasileiro (R$ 1.234, 2,3 km)*  
 
+`app/historico.py` - *Baixa o histórico do branch `data`, marca os imóveis novos e os que baixaram de preço e calcula a tendência semanal*  
+
 `app/interface.py` - *Peças da interface usadas pelas duas páginas: barra lateral, indicadores, ranking e cartões*  
   
 `app/mapa.py` - *Cria o mapa e pinta cada bairro conforme a métrica escolhida*  
@@ -177,7 +182,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `historico/backfill.py` - *Reconstrói o histórico a partir das versões do CSV guardadas no git, convertendo o formato antigo*  
 
-`historico/consultas.py` - *Consultas em SQL (DuckDB) sobre todos os dias: resumo por imóvel, mudanças de preço, novidades do dia e série por bairro*  
+`historico/consultas.py` - *Consultas em SQL (DuckDB) sobre todos os dias: resumo por imóvel, mudanças de preço, novidades do dia, série por bairro e a última observação de cada imóvel por semana (usadas também pelo dashboard)*  
 
 `tests/` - *Testes automatizados com páginas reais salvas em `tests/fixtures`. Para salvar uma página nova: `python -m tests.salvar_fixture <url> <nome>`*  
 
@@ -215,6 +220,23 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 O índice compara os imóveis **que estão na tela** entre si, por isso muda quando os filtros mudam. No mapa e no ranking, cada bairro mostra a **mediana** dos seus imóveis, e o ranking só inclui bairros com pelo menos 3 imóveis. Imóveis só comerciais ficam de fora, e os reservados aparecem apenas se o filtro pedir.
 
+## **Histórico no dashboard**
+
+O histórico fica no branch `data` (um Parquet por dia), mas o Streamlit Cloud só tem o branch `main`. Por isso o dashboard **baixa o branch `data` inteiro como um `.tar.gz`** direto do GitHub (`codeload.github.com/.../tar.gz/refs/heads/data`, poucos MB, um pedido só), extrai os Parquet numa pasta temporária e consulta tudo com DuckDB, reaproveitando `historico/consultas.py`. O resultado fica em cache por 3 horas (`st.cache_data`), então o download acontece poucas vezes por dia, e não a cada visita.
+
+Se o download falhar (GitHub fora do ar, sem internet), **o dashboard continua funcionando**: só não mostra os selos nem a tendência, e avisa que o histórico não pôde ser carregado.
+
+| O que aparece | Regra |
+|---|---|
+| Selo **Novo** | O imóvel foi visto pela primeira vez nos últimos 7 dias |
+| Selo **Baixou de preço** | A última mudança do total por mês foi uma queda, nos últimos 7 dias, e o preço de hoje ainda é o da queda. O valor de antes aparece riscado |
+| **N imóveis novos esta semana** | Quantos imóveis com o selo Novo passam pelos filtros escolhidos |
+| **Tendência** | Mediana por semana (de segunda a domingo), contando cada imóvel uma vez por semana, com os mesmos filtros da barra lateral. Semanas com menos de 3 imóveis ficam de fora |
+
+**Cuidado com 15/10/2026:** até 14/10/2026 a coleta cobria só ~30 bairros da região universitária; a partir de 15/10 cobre a cidade toda. Nesse dia, ~480 imóveis aparecem "pela primeira vez" sem serem novos de verdade, então ninguém que apareceu nesse dia (nem no primeiro dia do histórico) ganha o selo Novo. No gráfico de tendência, uma linha pontilhada marca essa semana, porque parte da mudança nela vem da cobertura maior.
+
+Para testar sem internet, a variável de ambiente `HISTORICO_URL` troca o endereço do histórico (os testes apontam para um `.tar.gz` sintético, `file:///...`).
+
 ## **Mapa dos bairros**
 
 São Carlos não tem bairros oficializados em lei (por isso não aparece na malha de bairros do IBGE). Os contornos vêm do [OpenStreetMap](https://www.openstreetmap.org/), onde a maioria dos bairros (loteamentos) da cidade está desenhada. O arquivo `dados/geo/bairros.geojson` é gerado por `python -m geo.gerar` e diz de onde veio cada contorno (`origem`):
@@ -246,6 +268,7 @@ No fim, o gerador lista os bairros com imóveis que ficaram sem contorno: os im�
 ![BeautifulSoup](https://img.shields.io/badge/BeautifulSoup-4B8BBE?style=for-the-badge)
 ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
 ![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
 ![Folium](https://img.shields.io/badge/Folium-77B829?style=for-the-badge)
 ![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=for-the-badge&logo=openstreetmap&logoColor=white)
 ![Shapely](https://img.shields.io/badge/Shapely-3F7CAC?style=for-the-badge)
