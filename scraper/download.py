@@ -30,6 +30,11 @@ def criar_cliente(**opcoes) -> httpx.Client:
         headers={"User-Agent": USER_AGENT},
         timeout=httpx.Timeout(20.0),
         follow_redirects=True,
+        # Uma conexão nova por requisição. O servidor da Cardinali (Apache) fecha
+        # conexões por conta própria e, com downloads em paralelo, ~3% das
+        # requisições caíam numa conexão recém-fechada (RemoteProtocolError).
+        # Sem reaproveitar: 0 erros, ao custo de ~75% mais tempo de download.
+        limits=httpx.Limits(max_keepalive_connections=0),
         **opcoes,
     )
 

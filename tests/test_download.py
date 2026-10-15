@@ -1,4 +1,7 @@
 """Testes do download, com respostas simuladas (sem acessar a internet)."""
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
 import httpx
 import pytest
 
@@ -62,6 +65,47 @@ def test_erro_definitivo_nao_tenta_de_novo():
     with cliente_com(responder) as cliente, pytest.raises(httpx.HTTPStatusError):
         baixar(cliente, "https://exemplo.com/a")
     assert len(chamadas) == 1
+
+
+@pytest.fixture
+def servidor_local():
+    """Servidor HTTP/1.1 com keep-alive que anota a porta de cada conexão recebida."""
+    portas = []
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"  # permite reaproveitar a conexão
+
+        def do_GET(self):
+            portas.append(self.client_address[1])
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    servidor = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=servidor.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{servidor.server_port}/", portas
+    servidor.shutdown()
+    servidor.server_close()
+
+
+def test_cada_requisicao_usa_uma_conexao_nova(servidor_local):
+    url, portas = servidor_local
+    # Controle: um cliente comum reaproveita a mesma conexão (mesma porta)
+    with httpx.Client() as comum:
+        for _ in range(3):
+            comum.get(url)
+    assert len(set(portas)) == 1
+
+    # O cliente do scraper abre uma conexão nova a cada requisição
+    portas.clear()
+    with criar_cliente() as cliente:
+        for _ in range(3):
+            baixar(cliente, url)
+    assert len(set(portas)) == 3
 
 
 def test_iso_8859_1_e_lido_como_windows_1252():
