@@ -1,4 +1,4 @@
-from app.coord_bairros import Buscar_coords
+from app.bairros import Buscar_coords
 
 
 '''
@@ -25,11 +25,12 @@ def Tirar_infos_bairros(df_filtrado):
     #Formatando média pra 2 casas decimais
     df_infos['Media'] = df_infos['Media'].round(2)
 
-    # Puxando a latitide e longitude de cada bairro pela função no script coords_bairros.py, separa latitude e longitude, e guarda em lista
+    # Puxando a latitide e longitude de cada bairro pela função no script bairros.py, separa latitude e longitude, e guarda em lista
+    # (bairros sem contorno no mapa ficam sem coordenada)
     lat_bairros = []
     lon_bairros = []
     for bairro in df_infos['Bairro']:
-        lat,lon = Buscar_coords(bairro)
+        lat,lon = Buscar_coords(bairro) or (None, None)
         lat_bairros.append(lat)
         lon_bairros.append(lon)
 

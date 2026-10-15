@@ -61,9 +61,9 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 ✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **apartamentos e casas em bairros próximos à USP e UFSCar, com valor total de até R$ 8000, pensando em desde quem procura morar em condomínios (sozinho ou grupo), até aqueles que procuram novas casas para suas Repúblicas.** 
   
-✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis, valor médio, mínimo e máximo) em um **mapa interativo clusterizado.**  
+✔️ `Mapa` - Exibe as métricas de cada bairro (quantidade de imóveis disponíveis, valor médio, mínimo e máximo) em um **mapa interativo que pinta a área de cada bairro**, com os contornos vindos do OpenStreetMap.  
   
-✔️ `Filtros` - Permite a filtragem do perfil de imóvel desejado pelo seu tipo, bairro, nº de dormitórios e faixa de preço.  
+✔️ `Filtros` - Permite a filtragem do perfil de imóvel desejado pela área (região universitária ou cidade toda), tipo, bairro, nº de dormitórios e faixa de preço.  
 
 ✔️ `Tabela` - Conforme o filtro aplicado, exibe em uma tabela os detalhes de todos os imóveis por bairro (Link do anúncio, valor do aluguel, condomínio, nº de dormitórios, etc.).  
   
@@ -78,7 +78,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 1. Utilizando as bibliotecas httpx e BeautifulSoup, foi feito um Web Scraper que percorre as listagens de aluguel de São Carlos no site da imobiliária mais famosa da cidade, lê a página de cada imóvel (valores, características e dados estruturados JSON-LD) e guarda tudo num arquivo CSV. Como o site é renderizado no servidor, não é preciso abrir um navegador.  
 2. Com o Github Actions, esse Scraper é executado automaticamente todos os dias. Antes de gravar, ele confere se o resultado faz sentido (taxa de falhas e queda brusca na quantidade de imóveis): se algo parecer quebrado, o CSV anterior é mantido.  
 3. A coleta de cada dia também é guardada como um arquivo Parquet no branch `data`, formando um histórico desde nov/2025 (os meses anteriores à mudança foram reconstruídos a partir das versões do CSV no git). Com DuckDB, dá para consultar todos os dias de uma vez em SQL: imóveis novos, que saíram do site, mudanças de preço e evolução por bairro.  
-4. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa clusterizado e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado.  
+4. Utilizando a biblioteca Folium e Pandas, é feita a criação do mapa e o cálculo das métricas de cada bairro, conforme os dados do CSV coletado. Os contornos dos bairros vêm do OpenStreetMap (veja [Mapa dos bairros](#mapa-dos-bairros)).  
 5. No Web App gerado pela biblioteca Streamlit, é feita a exibição do mapa e do banco de dados, a criação das sessões de filtros, e a personalização do layout.  
 6. A cada filtro aplicado, todas as métricas e exibições são refeitas e reexibidas conforme a solicitação.  
 
@@ -98,12 +98,21 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 │    └── 📄 config.toml  
 ├── 📂 app  
 │    ├── 📄 analises.py  
-│    ├── 📄 coord_bairros.py  
+│    ├── 📄 bairros.py  
 │    ├── 📄 dados.py  
 │    └── 📄 mapa.py   
 ├── 📂 assets  
 ├── 📂 dados  
-│    └── 📄 imoveis.csv  
+│    ├── 📄 imoveis.csv  
+│    └── 📂 geo  
+│         ├── 📄 bairros.geojson  
+│         ├── 📄 aliases_bairros.csv  
+│         ├── 📄 pontos_manuais.csv  
+│         └── 📄 desenhos_manuais.geojson  
+├── 📂 geo  
+│    ├── 📄 gerar.py  
+│    ├── 📄 nomes.py  
+│    └── 📄 osm.py  
 ├── 📂 historico  
 │    ├── 📄 backfill.py  
 │    ├── 📄 consultas.py  
@@ -134,11 +143,15 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `app/analises.py` - *Contém a função que calcula as métricas (média de valores, valor mín e max, oferta, etc.)*  
   
-`app/coord_bairros.py` - *Contém a função que retorna a coordenada do bairro pelo seu nome*  
+`app/bairros.py` - *Lê os contornos dos bairros, unifica os nomes e define a região universitária (bairros a até 2,5 km da USP ou da UFSCar)*  
   
-`app/dados.py` - *Lê o CSV do scraper e o deixa no formato do dashboard (recorte da região universitária, teto de R$ 8000)*  
+`app/dados.py` - *Lê o CSV do scraper e o deixa no formato do dashboard (região universitária ou cidade toda, teto de R$ 8000)*  
   
-`app/mapa.py` - *Contém a função que cria e clusteriza o mapa*  
+`app/mapa.py` - *Contém a função que cria o mapa e pinta cada bairro conforme a métrica escolhida*  
+
+`dados/geo/` - *Contornos dos bairros e as correções manuais (veja [Mapa dos bairros](#mapa-dos-bairros))*  
+
+`geo/` - *Gera o `dados/geo/bairros.geojson` a partir do OpenStreetMap (`python -m geo.gerar`)*  
 
 `assets/` - *Imagens usadas no dashboard (logos e ícones do mapa)*
 
@@ -185,6 +198,24 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 | `coletado_em` | Data da coleta |
   
 
+## **Mapa dos bairros**
+
+São Carlos não tem bairros oficializados em lei (por isso não aparece na malha de bairros do IBGE). Os contornos vêm do [OpenStreetMap](https://www.openstreetmap.org/), onde a maioria dos bairros (loteamentos) da cidade está desenhada. O arquivo `dados/geo/bairros.geojson` é gerado por `python -m geo.gerar` e diz de onde veio cada contorno (`origem`):
+
+| `origem` | O que é |
+|---|---|
+| `osm` | Contorno desenhado no OpenStreetMap |
+| `enderecos` | O bairro só tem um ponto no OSM; o contorno envolve os endereços do OSM marcados com esse bairro (é o caso do Centro) |
+| `aproximado` | Sem endereços suficientes: a área em volta do ponto do bairro (até 700 m) que nenhum bairro vizinho ocupa |
+| `manual` | Desenhado à mão em `dados/geo/desenhos_manuais.geojson` |
+
+**Como corrigir um bairro** (depois, rode `python -m geo.gerar` de novo):
+- *O site escreve o nome diferente do mapa* (ex.: "Jardim Hikari" e "Jardim Hikare"): adicione uma linha em `dados/geo/aliases_bairros.csv`.
+- *O ponto do bairro está no lugar errado*: ajuste em `dados/geo/pontos_manuais.csv` (latitude e longitude, que dá para copiar do Google Maps). Esses pontos valem mais que os do OSM.
+- *O contorno está ruim ou não existe*: desenhe o bairro no [geojson.io](https://geojson.io), dê a ele a propriedade `"bairro": "Nome do Bairro"` e cole a feature em `dados/geo/desenhos_manuais.geojson`.
+
+No fim, o gerador lista os bairros com imóveis que ficaram sem contorno: os imóveis deles continuam na tabela, só não aparecem no mapa.
+
 ## **Tecnologias Utilizadas**
   
 ![Git](https://img.shields.io/badge/Git-F05033?style=for-the-badge&logo=git&logoColor=white)
@@ -195,6 +226,8 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
 ![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
 ![Folium](https://img.shields.io/badge/Folium-77B829?style=for-the-badge)
+![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=for-the-badge&logo=openstreetmap&logoColor=white)
+![Shapely](https://img.shields.io/badge/Shapely-3F7CAC?style=for-the-badge)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 
 ## **Desenvolvedor**

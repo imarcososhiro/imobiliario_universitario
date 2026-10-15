@@ -8,9 +8,7 @@ import os
 from datetime import datetime
 from datetime import timedelta
 
-#Lendo dados do arquivo csv diariamente atualizado
 diretorio_atual = os.path.dirname(__file__)
-df_principal = Carregar_imoveis()
 
 st.set_page_config(
     page_title="Análise Imobiliária Universitária",
@@ -109,6 +107,19 @@ def Tipo_Escolhido():
     )
 
     return tipo_escolhido
+
+# Exibe o layout de filtro de área, e recebe o filtro do usuário
+def Area_Escolhida():
+    return st.sidebar.radio(
+        "Área",
+        ('Região universitária', 'Cidade toda'),
+        help='Região universitária: bairros a até 2,5 km da USP ou da UFSCar'
+    )
+
+area = Area_Escolhida()
+
+#Lendo dados do arquivo csv diariamente atualizado
+df_principal = Carregar_imoveis(so_regiao_universitaria=(area == 'Região universitária'))
 
 tipo = Tipo_Escolhido()
 n_dormitorios = Dormitorios_num()

@@ -2,3 +2,4 @@
 -r requirements.txt
 -r requirements-scraper.txt
 pytest==9.1.1
+shapely==2.2.0  # gerador do mapa de bairros (geo/)
