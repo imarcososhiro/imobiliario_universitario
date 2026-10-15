@@ -47,8 +47,9 @@ def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
     def Area_bairro(contorno, cor, html, mapa):
         folium.GeoJson(
             contorno,
-            style_function=lambda feature: {'fillColor': cor, 'color': cor, 'weight': 1, 'fillOpacity': 0.65},
-            highlight_function=lambda feature: {'weight': 3, 'fillOpacity': 0.85},
+            # Borda branca fina: separa bairros vizinhos que têm cores parecidas
+            style_function=lambda feature: {'fillColor': cor, 'color': 'white', 'weight': 1.2, 'fillOpacity': 0.65},
+            highlight_function=lambda feature: {'color': '#1f2937', 'weight': 2.5, 'fillOpacity': 0.85},
             tooltip=folium.Tooltip(html),
         ).add_to(mapa)
 

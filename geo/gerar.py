@@ -1,6 +1,6 @@
 """Gera dados/geo/bairros.geojson, com o contorno de cada bairro para o mapa do dashboard.
 
-Uso: python -m geo.gerar [--osm resposta_da_overpass.json]
+Uso: python -m geo.gerar [--osm bairros.json] [--ruas ruas.json]  (respostas da Overpass já salvas)
 
 1. Baixa do OpenStreetMap os polígonos e pontos dos bairros de São Carlos.
 2. Junta as grafias diferentes do mesmo bairro (dados/geo/aliases_bairros.csv).
@@ -10,6 +10,8 @@ Uso: python -m geo.gerar [--osm resposta_da_overpass.json]
    - "enderecos": em volta dos endereços do OSM marcados com o bairro (ex.: Centro);
    - "aproximado": sem endereços suficientes, a área em volta do ponto do bairro
      que nenhum outro bairro ocupa.
+5. Os contornos calculados são ajustados às quadras (os quarteirões entre as ruas do OSM),
+   para que as bordas sigam as ruas em vez de cortar quarteirões no meio.
 """
 import argparse
 import csv
@@ -22,11 +24,12 @@ from collections import Counter
 from pathlib import Path
 
 import shapely
-from shapely.geometry import MultiPoint, Point, mapping, shape
+from shapely.geometry import LineString, MultiPoint, Point, Polygon, mapping, shape
 from shapely.geometry.base import BaseGeometry
-from shapely.ops import unary_union
+from shapely.ops import polygonize, unary_union
 
 from geo import osm
+from geo.lugares import CAMPI
 from geo.nomes import PASTA_GEO, carregar_aliases, nome_padrao, normalizar
 
 log = logging.getLogger(__name__)
@@ -38,6 +41,8 @@ CAMINHO_IMOVEIS = PASTA_GEO.parent / "imoveis.csv"
 RAIO_APROXIMACAO_M = 700    # um bairro aproximado não passa deste raio em volta do ponto
 MIN_ENDERECOS = 15          # menos endereços que isso não desenham um contorno confiável
 MAX_DESVIO_ENDERECOS_M = 400  # o miolo dos endereços tem que estar perto do ponto do bairro
+MIN_QUADRA_M2 = 200         # menos que isso é fiapo entre ruas, não quarteirão
+MAX_QUADRA_M2 = 150_000     # mais que isso (15 ha) é campus, parque ou zona rural, não quarteirão
 TOLERANCIA_GRAUS = 0.00002  # simplificação do contorno (~2 m), para o arquivo ficar leve
 
 
@@ -116,17 +121,55 @@ def aproximar(pontos: dict[str, Point], vizinhos: list[Point], ocupado: BaseGeom
     return resultado
 
 
+def distancia_campus_km(geometria: BaseGeometry) -> float:
+    """Distância da borda do bairro até o campus mais próximo (0 se o campus estiver dentro)."""
+    projecao = Projecao(CAMPI[0][0])
+    area = projecao.para_metros(geometria)
+    return min(area.distance(projecao.para_metros(Point(lon, lat))) for lat, lon in CAMPI) / 1000
+
+
+def montar_quadras(ruas: list[LineString]) -> list[Polygon]:
+    """Quarteirões: as áreas fechadas entre as ruas."""
+    if not ruas:
+        return []
+    projecao = Projecao(ruas[0].coords[0][1])
+    return [quadra for quadra in polygonize(unary_union(ruas))
+            if MIN_QUADRA_M2 <= projecao.para_metros(quadra).area <= MAX_QUADRA_M2]
+
+
+def ajustar_as_quadras(contornos: dict[str, BaseGeometry], quadras: list[Polygon],
+                       ocupado: BaseGeometry) -> dict[str, BaseGeometry]:
+    """Troca cada contorno calculado pela união das quadras que ele cobre em mais da metade.
+
+    Assim as bordas passam a seguir as ruas. Quadras que já são, na maior parte, de um
+    bairro do OSM ficam de fora. Sem nenhuma quadra, o contorno original é mantido.
+    """
+    if not quadras:
+        return contornos
+    arvore = shapely.STRtree(quadras)
+    shapely.prepare(ocupado)
+    ajustados = {}
+    for chave, contorno in contornos.items():
+        escolhidas = [quadras[i] for i in arvore.query(contorno)
+                      if quadras[i].intersection(contorno).area > quadras[i].area / 2
+                      and quadras[i].intersection(ocupado).area <= quadras[i].area / 2]
+        ajustado = osm.apenas_area(unary_union(escolhidas).difference(ocupado)) if escolhidas else None
+        ajustados[chave] = ajustado or contorno
+    return ajustados
+
+
 def gerar(dados_osm: dict, aliases: dict[str, str], desenhos: dict[str, BaseGeometry],
-          pontos_manuais: dict[str, Point], nomes_no_site: Counter) -> tuple[list[dict], list[str]]:
+          pontos_manuais: dict[str, Point], nomes_no_site: Counter,
+          ruas: list[LineString] | None = None) -> tuple[list[dict], list[str]]:
     """Monta as features do GeoJSON. Devolve também os bairros com imóveis que ficaram sem contorno."""
-    poligonos, pontos, enderecos = osm.ler_elementos(dados_osm)
+    poligonos, pontos, enderecos, residenciais = osm.ler_elementos(dados_osm)
 
     def chave(nome: str) -> str:
         return normalizar(nome_padrao(nome, aliases))
 
     # Todas as grafias vistas de cada bairro (site e OSM), com o nº de imóveis no site
     grafias: dict[str, Counter] = {}
-    for nome in [*nomes_no_site, *poligonos, *pontos, *desenhos]:
+    for nome in [*nomes_no_site, *poligonos, *pontos, *desenhos, *residenciais]:
         grafias.setdefault(chave(nome), Counter())[nome_padrao(nome, aliases)] += nomes_no_site[nome]
 
     def nome_exibido(k: str) -> str:
@@ -144,11 +187,23 @@ def gerar(dados_osm: dict, aliases: dict[str, str], desenhos: dict[str, BaseGeom
         k = chave(nome)
         geometrias[k], origem[k] = geometria, "manual"
 
+    # Condomínios que o OSM marca como área residencial, e não como bairro: só entram se
+    # tiverem imóveis e nenhum outro contorno (senão o mapa se enche de condomínios)
+    no_site = {chave(nome) for nome in nomes_no_site}
+    residenciais_por_chave: dict[str, BaseGeometry] = {}
+    for nome, geometria in residenciais.items():
+        k = chave(nome)
+        residenciais_por_chave[k] = unary_union([residenciais_por_chave[k], geometria]) \
+            if k in residenciais_por_chave else geometria
+    for k, geometria in residenciais_por_chave.items():
+        if k in no_site and k not in geometrias:
+            geometrias[k], origem[k] = geometria, "osm"
+
     pontos_por_chave = {chave(nome): ponto for nome, ponto in [*pontos.items(), *pontos_manuais.items()]}
     enderecos_por_chave: dict[str, list[Point]] = {}
     for nome, lista in enderecos.items():
         enderecos_por_chave.setdefault(chave(nome), []).extend(lista)
-    faltando = sorted({chave(nome) for nome in nomes_no_site} - geometrias.keys())
+    faltando = sorted(no_site - geometrias.keys())
 
     for k in faltando:
         geometria = contorno_por_enderecos(enderecos_por_chave.get(k, []), pontos_por_chave.get(k),
@@ -161,6 +216,10 @@ def gerar(dados_osm: dict, aliases: dict[str, str], desenhos: dict[str, BaseGeom
     for k, geometria in aproximar(so_ponto, vizinhos, unary_union(list(geometrias.values()))).items():
         geometrias[k], origem[k] = geometria, "aproximado"
 
+    calculados = {k: geometria for k, geometria in geometrias.items() if origem[k] in ("enderecos", "aproximado")}
+    do_osm = unary_union([geometria for k, geometria in geometrias.items() if k not in calculados])
+    geometrias.update(ajustar_as_quadras(calculados, montar_quadras(ruas or []), do_osm))
+
     features = []
     for k in sorted(geometrias):
         geometria = shapely.set_precision(geometrias[k].simplify(TOLERANCIA_GRAUS), 1e-6)
@@ -168,7 +227,8 @@ def gerar(dados_osm: dict, aliases: dict[str, str], desenhos: dict[str, BaseGeom
         features.append({
             "type": "Feature",
             "properties": {"bairro": nome_exibido(k), "origem": origem[k],
-                           "lat": round(ponto.y, 5), "lon": round(ponto.x, 5)},
+                           "lat": round(ponto.y, 5), "lon": round(ponto.x, 5),
+                           "distancia_campus_km": round(distancia_campus_km(geometria), 2)},
             "geometry": mapping(geometria),
         })
     sem_contorno = Counter({nome_exibido(k): grafias[k].total() for k in faltando if k not in geometrias})
@@ -196,16 +256,21 @@ def salvar_geojson(features: list[dict], caminho: Path = CAMINHO_GEOJSON) -> Non
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Gera o GeoJSON dos bairros de São Carlos.")
-    parser.add_argument("--osm", type=Path, help="resposta da Overpass já salva (senão, baixa)")
+    parser.add_argument("--osm", type=Path, help="resposta da Overpass com os bairros, já salva (senão, baixa)")
+    parser.add_argument("--ruas", type=Path, help="resposta da Overpass com as ruas, já salva (senão, baixa)")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(levelname)-7s %(message)s")
 
-    dados_osm = json.loads(args.osm.read_text(encoding="utf-8")) if args.osm else osm.baixar()
+    def ler_ou_baixar(caminho: Path | None, consulta: str) -> dict:
+        return json.loads(caminho.read_text(encoding="utf-8")) if caminho else osm.baixar(consulta)
+
+    dados_osm = ler_ou_baixar(args.osm, osm.CONSULTA_BAIRROS)
+    ruas = osm.ler_ruas(ler_ou_baixar(args.ruas, osm.CONSULTA_RUAS))
     with open(CAMINHO_IMOVEIS, encoding="utf-8", newline="") as arquivo:
         nomes_no_site = Counter(linha["bairro"] for linha in csv.DictReader(arquivo))
 
     features, sem_contorno = gerar(dados_osm, carregar_aliases(), carregar_desenhos(),
-                                   carregar_pontos_manuais(), nomes_no_site)
+                                   carregar_pontos_manuais(), nomes_no_site, ruas)
     salvar_geojson(features)
     origens = Counter(feature["properties"]["origem"] for feature in features)
     log.info("%d bairros gravados em %s (%s)", len(features), CAMINHO_GEOJSON,

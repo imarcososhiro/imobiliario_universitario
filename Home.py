@@ -113,7 +113,7 @@ def Area_Escolhida():
     return st.sidebar.radio(
         "Área",
         ('Região universitária', 'Cidade toda'),
-        help='Região universitária: bairros a até 2,5 km da USP ou da UFSCar'
+        help='Região universitária: bairros que chegam a até 2,2 km da USP ou da UFSCar'
     )
 
 area = Area_Escolhida()
