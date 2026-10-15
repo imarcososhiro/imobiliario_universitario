@@ -1,274 +1,203 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.select import Select
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-import pandas as pd
-import os
+"""Imóveis para alugar em São Carlos no site da Cardinali (www.cardinali.com.br).
 
-# Settings pra fazer o scraper rodar em segundo plano no github actions
-chrome_options = Options()
-chrome_options.page_load_strategy = 'eager'
-chrome_options.add_argument("--headless=new")
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--window-size=1920,1080")
-chrome_options.add_experimental_option("prefs", {"profile.managed_default_settings.images": 2})
-chrome_options.add_argument('--log-level=3')
+O site é renderizado no servidor, então não precisa de navegador: basta baixar o HTML.
+1. As páginas de listagem (/alugar/Sao-Carlos/Apartamento?pag=N) trazem os links dos imóveis.
+2. A página de cada imóvel traz os valores, as características e um JSON-LD (schema.org).
+"""
+import json
+import logging
+import re
+from urllib.parse import urljoin, urlsplit
 
-def Scraper():
-    print('⏳ Iniciando scraping...\n')
-    servico = Service(ChromeDriverManager().install())
-    navegador = webdriver.Chrome(service=servico, options=chrome_options)
-    espera = WebDriverWait(navegador, 10)
+from bs4 import BeautifulSoup
 
-    # Pt. 1 - Filtrando apartamentos
+from scraper.conversao import normalizar_texto, para_inteiro, para_numero
+from scraper.download import baixar
+from scraper.modelo import Imovel
 
-    navegador.get('https://www.cardinali.com.br/pesquisa-de-imoveis/')
-    navegador.maximize_window()
+log = logging.getLogger(__name__)
 
-    #Abrir layout de filtros
-    botao_pesquisa = espera.until(EC.element_to_be_clickable((By.XPATH, '/html/body/main/section/div/div[1]/div[1]/button')))
-    botao_pesquisa.click()
+FONTE = "cardinali"
+SITE = "https://www.cardinali.com.br"
+CIDADE = "Sao-Carlos"
+CATEGORIAS = ("Apartamento", "Casa")
+MAX_PAGINAS = 100  # trava de segurança caso a paginação do site mude
 
-    print('✔️ Filtrando apartamentos')
+RE_LINK_IMOVEL = re.compile(r"^(https?://[^/]+)?/(alugar|comprar)/.+/\d+$")
 
-    # Selecionar Locação
-    operacao = espera.until(EC.element_to_be_clickable((By.ID, 'locacao_venda')))
-    operacao_select = Select(operacao)
-    operacao_select.select_by_value('L')
+# Rótulo da linha no quadro de valores (normalizado) -> campo do Imovel.
+# Rótulos exatos, para não confundir "Total / Mês" com o "Total" da venda.
+ROTULOS_VALORES = {
+    "aluguel": "aluguel",
+    "por: aluguel": "aluguel",
+    "de: aluguel": "aluguel_anterior",
+    "c. bonificacao": "aluguel_bonificado",
+    "condominio": "condominio",
+    "iptu": "iptu",
+    "total / mes": "total_mensal",
+}
 
-    # Filtrar por preço
-    navegador.execute_script(""" 
-        var slider = document.getElementById('slider_loc');
-        if (slider && slider.noUiSlider) {
-            slider.noUiSlider.set([0, 8000]); // min, max
-        }
-    """) #Script JS que tive que pesquisar pelo comando, porque não manjo de JS
+# Classe CSS do item no quadro de características -> (campo do Imovel, conversor)
+CARACTERISTICAS = {
+    "tipo-prop": ("finalidade", str),
+    "dorm-ico-imo": ("dormitorios", para_inteiro),
+    "suites-ico-imo": ("suites", para_inteiro),
+    "banh-ico-imo": ("banheiros", para_inteiro),
+    "gar-ico-imo": ("vagas", para_inteiro),
+    "a-util-ico-imo": ("area_util_m2", para_numero),
+    "a-const-ico-imo": ("area_construida_m2", para_numero),
+    "a-total-ico-imo": ("area_total_m2", para_numero),
+}
 
-    # Filtrar pela cidade de São Carlos
-    cidade_id = navegador.find_element(By.ID, 'id_cidade')
-    cidade_select = Select(cidade_id)
-    cidade_select.select_by_value('190')
 
-    # Filtrar por tipo
-    tipo_imovel_id = navegador.find_element(By.ID,'id_tipo_imovel')
-    tipo_imovel_select = Select(tipo_imovel_id)
+class ErroDeExtracao(Exception):
+    """O HTML não está no formato esperado (provavelmente o site mudou)."""
 
-    # FILTROS PARA APARTAMENTOS
 
-    tipo_imovel_select.select_by_value('184') # Apartamento
-    tipo_imovel_select.select_by_value('164') # Apartamento sem condomínio
-    tipo_imovel_select.select_by_value('55') # Flat
-    tipo_imovel_select.select_by_value('37') # Flat com Condomínio
-    tipo_imovel_select.select_by_value('4') # Flat sem Condomínio
-    tipo_imovel_select.select_by_value('61') # Kitchnet
-    tipo_imovel_select.select_by_value('36') # Kitchnet com Condomínio
-    tipo_imovel_select.select_by_value('6') # Kitchnet sem Condomínio
-    tipo_imovel_select.select_by_value('8') # Padrão
-    tipo_imovel_select.select_by_value('181') # Prédio
-    tipo_imovel_select.select_by_value('161') # Studio
+def url_listagem(categoria: str, pagina: int) -> str:
+    return f"{SITE}/alugar/{CIDADE}/{categoria}?pag={pagina}"
 
-    # FILTROS PRA CASAS
-    tipo_imovel_select.select_by_value('39') #Área de lazer
-    tipo_imovel_select.select_by_value('10') #Condomínio
-    tipo_imovel_select.select_by_value('40') #Edícula
-    tipo_imovel_select.select_by_value('12') #Padrão
-    tipo_imovel_select.select_by_value('13') #Sobrado
-    tipo_imovel_select.select_by_value('16') #Sobrado sem condomínio
 
-    # Filtrar pelos bairros - adicionar mais depois
-    bairro_id = navegador.find_element(By.ID,'id_bairro')
-    bairro_select = Select(bairro_id)
-    bairro_select.select_by_value('16743') # Centro
-    bairro_select.select_by_value('16859')  # Jardim Lutfalla
-    bairro_select.select_by_value('4171')  # Cidade Jardim
-    bairro_select.select_by_value('4146')  # Vila Monteiro (Gleba I)
-    bairro_select.select_by_value('1690')  # Vila Monteiro Gleba I
-    bairro_select.select_by_value('802')  # Jardim Paulistano
-    bairro_select.select_by_value('793')  # Jardim Paraíso
-    bairro_select.select_by_value('17022')  # Jardim Macarenco
-    bairro_select.select_by_value('3871')  # Jardim Macarengo
-    bairro_select.select_by_value('238')  # Cidade Universitária
-    bairro_select.select_by_value('1144')  # Parque Arnold Schimidt
-    bairro_select.select_by_value('895')  # Jardim Santa Paula
-    bairro_select.select_by_value('100')  # Jardim Bandeirantes
-    bairro_select.select_by_value('544')  # Jardim Centenario
-    bairro_select.select_by_value('775')  # Jardim Nova Santa Paula
-    bairro_select.select_by_value('1540')  # Tijuco Preto
-    bairro_select.select_by_value('505')  # Jardim Bethania
-    bairro_select.select_by_value('1621')  # Vila Elizabeth
-    bairro_select.select_by_value('5266')  # Jardim São Carlos
-    bairro_select.select_by_value('1255')  # Parque Santa Monica
-    bairro_select.select_by_value('1258')  # Parque Santa Monica II
-    bairro_select.select_by_value('478')  # Jardim Alvorada
-    bairro_select.select_by_value('1606')  # Vila Celina
-    bairro_select.select_by_value('1669')  # Vila Marina
-    bairro_select.select_by_value('1666')  # Vila Marigo
-    bairro_select.select_by_value('16994')  # Jardim Hikari
-    bairro_select.select_by_value('3780')  # Jardim Hikare
-    bairro_select.select_by_value('3121')  # Parque Industrial
-    bairro_select.select_by_value('1156')  # Parque Delta
-    bairro_select.select_by_value('16884')  # Monjolinho
-    bairro_select.select_by_value('3538')  # Jardim Jockei Club A
-    bairro_select.select_by_value('3777')  # Jardim Jockey Clube
-    #bairro_select.select_by_value('17341')  # Jardim Jockei Club
-    bairro_select.select_by_value('394')  # Parque Espraiado
+def normalizar_url_imovel(href: str) -> str:
+    """Deixa o link absoluto e sempre na versão de aluguel.
 
-    # Confirmar filtro
-    navegador.find_element(By.XPATH, '//*[@id="filtro"]/div/div/div[3]/div[2]/button').click()
+    Imóveis que estão à venda e para alugar às vezes aparecem na listagem de
+    aluguel com link /comprar/...; a página /alugar/ do mesmo código também existe.
+    """
+    caminho = urlsplit(urljoin(SITE, href)).path
+    return SITE + re.sub(r"^/comprar/", "/alugar/", caminho)
 
-    #===========================================================================================================#
 
-    # Pt. 2 - Extração dos dados
+def extrair_listagem(html: str) -> tuple[list[str], bool, int | None]:
+    """Lê uma página de listagem.
 
-    # Função que cria uma lista com os links dos apartamentos listados em uma página vitrine
-    # NOTA: páginas vitrines são as páginas que tem vários apartamentos listados, só com
-    # a foto, preço e bairro de cada um
-    def Pegando_links_aps():
-        lista_links_aps = []
+    Devolve (links dos imóveis, se existe próxima página, total anunciado no título).
+    """
+    soup = BeautifulSoup(html, "lxml")
 
-        container = navegador.find_elements(By.CLASS_NAME, 'container')
-        links_aps = container[1].find_elements(By.TAG_NAME, 'a')
-        for site in links_aps:
-            link = site.get_attribute('href')
-            if link in lista_links_aps or 'javascript' in link or 'pag=' in link:
-                continue
-            lista_links_aps.append(link)
-        return lista_links_aps
+    urls = []
+    for card in soup.select("div.card-imo"):
+        link = card.find("a", href=RE_LINK_IMOVEL)
+        if link:
+            url = normalizar_url_imovel(link["href"])
+            if url not in urls:
+                urls.append(url)
 
-    aps_dados = [] # lista que vai guardar todos os dados dos apartamentos
+    # O último link da paginação é o "»"; na última página ele vira "javascript:void(0)"
+    paginacao = soup.select(".pagination a[href]")
+    tem_proxima = bool(paginacao) and not paginacao[-1]["href"].lower().startswith("javascript")
 
-    # Função que extrai os dados dos apartamentos a partir da página específica deles
-    def Extrair_dados_aps(bairro, tipo_im, link):
-        nonlocal aps_dados
+    titulo = soup.find("h1")
+    achado = re.search(r"(\d[\d.]*)\s*im", titulo.get_text(" ", strip=True)) if titulo else None
+    total = int(achado.group(1).replace(".", "")) if achado else None
+
+    return urls, tem_proxima, total
+
+
+def listar_urls(cliente) -> tuple[list[str], int]:
+    """Percorre as listagens de cada categoria. Devolve (links dos imóveis, total anunciado)."""
+    urls: dict[str, None] = {}  # dict guarda a ordem de chegada e ignora repetidos
+    anunciados = 0
+    for categoria in CATEGORIAS:
+        for pagina in range(1, MAX_PAGINAS + 1):
+            links, tem_proxima, total = extrair_listagem(baixar(cliente, url_listagem(categoria, pagina)))
+            if pagina == 1:
+                if not links or total is None:
+                    raise ErroDeExtracao(f"listagem de {categoria} sem imóveis ou sem total: o site mudou?")
+                total_categoria = total
+            novos = [url for url in links if url not in urls]
+            urls.update(dict.fromkeys(novos))
+            # Páginas além da última repetem a última, então "nada novo" também encerra
+            if not tem_proxima or not novos:
+                break
+        anunciados += total_categoria
+        log.info("%s: %d páginas de listagem, %d imóveis anunciados", categoria, pagina, total_categoria)
+    return list(urls), anunciados
+
+
+def extrair_imovel(html: str, url: str, coletado_em: str | None = None) -> Imovel:
+    """Lê a página de um imóvel. Levanta ErroDeExtracao se o formato não for o esperado."""
+    partes = urlsplit(url).path.strip("/").split("/")
+    # alugar / <cidade> / <tipo> / <subtipo> / <bairro> / <código>
+    if len(partes) != 6 or not partes[-1].isdigit():
+        raise ErroDeExtracao(f"URL fora do padrão esperado: {url}")
+    _, _, tipo, subtipo, bairro, codigo = partes
+
+    soup = BeautifulSoup(html, "lxml")
+    imovel = Imovel(
+        codigo=int(codigo),
+        fonte=FONTE,
+        url=url,
+        tipo=tipo,
+        # Os links logo abaixo do título trazem os nomes com acento, ex.: "Vila Monteiro (Gleba I)"
+        subtipo=_texto_do_link(soup, "/" + "/".join(partes[:4]), padrao=subtipo),
+        bairro=_texto_do_link(soup, "/" + "/".join(partes[:5]), padrao=bairro),
+        coletado_em=coletado_em,
+    )
+    _ler_valores(soup, imovel)
+    _ler_caracteristicas(soup, imovel)
+    _ler_json_ld(soup, imovel)
+
+    if imovel.aluguel is None and imovel.aluguel_bonificado is None:
+        # Aluguel "Consulte-nos": o "Total / Mês" do site seria só condomínio + IPTU
+        imovel.total_mensal = None
+    return imovel
+
+
+def _texto_do_link(soup: BeautifulSoup, href: str, padrao: str) -> str:
+    link = soup.find("a", href=href)
+    texto = link.get_text(" ", strip=True) if link else ""
+    return texto or padrao.replace("-", " ")
+
+
+def _ler_valores(soup: BeautifulSoup, imovel: Imovel) -> None:
+    bloco = soup.find(id="valores_imovel")
+    if bloco is None:
+        raise ErroDeExtracao("quadro de valores (#valores_imovel) não encontrado")
+
+    selo = bloco.select_one(".badge")
+    imovel.situacao = selo.get_text(" ", strip=True) if selo else None
+
+    reconhecidos = 0
+    for linha in bloco.select(".row"):
+        colunas = linha.find_all("div", recursive=False)
+        if len(colunas) != 2:
+            continue
+        campo = ROTULOS_VALORES.get(normalizar_texto(colunas[0].get_text(" ", strip=True)))
+        if campo and getattr(imovel, campo) is None:
+            setattr(imovel, campo, para_numero(colunas[1].get_text(" ", strip=True)))
+            reconhecidos += 1
+    if reconhecidos == 0:
+        raise ErroDeExtracao("nenhum valor reconhecido no quadro de valores")
+
+
+def _ler_caracteristicas(soup: BeautifulSoup, imovel: Imovel) -> None:
+    codigo = soup.select_one(".card-imo-radius .codigo-imo .fw-bold")
+    if codigo is None:
+        raise ErroDeExtracao("quadro de características não encontrado")
+    if para_inteiro(codigo.get_text()) != imovel.codigo:
+        raise ErroDeExtracao(f"código na página ({codigo.get_text(strip=True)}) difere do da URL")
+
+    for classe, (campo, converter) in CARACTERISTICAS.items():
+        valor = soup.select_one(f".card-imo-radius .{classe} .fw-bold")
+        if valor is not None:
+            setattr(imovel, campo, converter(valor.get_text(" ", strip=True)))
+
+
+def _ler_json_ld(soup: BeautifulSoup, imovel: Imovel) -> None:
+    for script in soup.find_all("script", type="application/ld+json"):
         try:
-            valores_agrupados = navegador.find_element(By.ID, 'valores_imovel')
-            valores = valores_agrupados.find_elements(By.XPATH, './div')
-            especificacoes = [('Bairro', bairro), ('Tipo', tipo_im),('Link', link)]
-            categorias = ['C. Bonificação', 'Condomínio', 'IPTU', 'Total / Mês']
-            for valor in valores:
-                categoria, valor = map(str, valor.text.split('\n'))
-                if categoria in categorias:
-                    if categoria == 'C. Bonificação':
-                        categoria = 'Aluguel com Bonificação'
-                    pass
-                elif 'POR:' in categoria:
-                    categoria = 'Aluguel Cheio'
-                elif 'Aluguel' == categoria:
-                    categoria = 'Aluguel Cheio'
-                else:
-                    continue
-                especificacoes.append((categoria, valor))
-
-            dados_imovel = navegador.find_elements(By.CLASS_NAME, 'card-imo-radius')[1].text.split('\n')
-
-            for dado in dados_imovel:
-                if 'Dormitório' in dado:
-                    dormitorio_index = dados_imovel.index(dado) -1
-                    dormitorios = dados_imovel[dormitorio_index]
-                    especificacoes.append(('Dormitórios', dormitorios))
-                if 'Banheiro' in dado:
-                    banheiros_index = dados_imovel.index(dado) - 1
-                    banheiros = dados_imovel[banheiros_index]
-                    especificacoes.append(('Banheiros', banheiros))
-                if 'Suíte' in dado:
-                    suites_index = dados_imovel.index(dado) - 1
-                    suites = dados_imovel[suites_index]
-                    especificacoes.append(('Suítes', suites))
-                if 'Garage' in dado:
-                    garagens_index = dados_imovel.index(dado) - 1
-                    garagens = dados_imovel[garagens_index]
-                    especificacoes.append(('Garagens', garagens))
-
-            aps_dados.append(especificacoes)
-
-        except:
-            pass
-
-    # Pegando quantidade de imóveis encontrados
-    texto_imoveis = navegador.find_element(By.XPATH, '/html/body/main/section/div/h1').text
-    quantidade_imoveis = texto_imoveis.split(' ')[0]
-
-    print(f'\n✔️ {quantidade_imoveis} imóveis encontrados')
-
-    print('\nOBS: Nem todos os apartamentos coletados serão listados no mapa, pois, o site só conta com filtro de\nvalor de Aluguel e, consequentemente, alguns imóveis ultrapassam o valor de R$ 8000 quando somado o Aluguel ao Condomínio e IPTU.\n')
-
-    print('✔️ Começando extração dos dados...\n')
-    # loop para extração de dados dos apartamentos
-    while True:
-        #Pegando o link da próxima vitrine
-        pagina_div = navegador.find_element(By.CLASS_NAME, 'pagination')
-        pagina_ul = pagina_div.find_element(By.TAG_NAME, 'ul')
-        paginas = pagina_ul.find_elements(By.TAG_NAME, 'li')
-        links_paginas = pagina_ul.find_elements(By.TAG_NAME, 'a')
-
-        #Link da próxima vitrine
-        proxima_pagina = links_paginas[-1].get_attribute('href')
-
-        #Pegando o link de todos os apartamentos da vitrine atual
-        links_aps = Pegando_links_aps()
-
-        #Extraindo dados de todos os apartamentos da página, usando os links coletados
-        for link_apartamento in links_aps:
-            navegador.get(link_apartamento)
-            bairro = link_apartamento.split('/')[-2].replace('-', ' ') #Pego o nome do bairro diretamente da URL do ap
-            tipo = link_apartamento.split('/')[-4]
-            if tipo == 'Comercial':
-                continue
-            Extrair_dados_aps(bairro, tipo, str(link_apartamento))
-            if len(aps_dados) % 10 == 0:
-                print(f'Aps extraídos: {len(aps_dados)}')
-        # Quando chego na última vitrine, o link dela tem o formato 'JavaScript:void(0);'
-        # portanto é um identificador pra parar o loop
-        if 'javascript' in proxima_pagina.lower():
+            dados = json.loads(script.string or "", strict=False)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(dados, dict) and dados.get("@type") == "Product":
+            imovel.titulo = dados.get("name")
+            imagens = dados.get("image") or []
+            if isinstance(imagens, str):
+                imagens = [imagens]
+            imovel.foto_url = imagens[0] if imagens else None
             break
-        else:
-            navegador.get(proxima_pagina)
 
-    print(f'Aps extraídos: {len(aps_dados)}')
-    print('\nVarredura completa! ✅\n')
-
-    navegador.quit()
-
-    #Função que pega o Dataset bruto do Scraper e faz a limpeza dos dados
-    def Limpar_Dados(apartamentos):
-        aps_dados_limpos = []
-
-        # Formatando a vírgula e o tipo dos números, e o nome dos bairros
-        for dados in apartamentos:
-            lista_tuplas = []
-
-            for categoria, info in dados:
-                # Transformando os preços em floats
-                if categoria == 'Total / Mês':
-                    info = info.replace('.', '')
-                    info = info.replace(',', '.')
-                    info = float(info)
-
-                # Transformando o nº de dormitórios em ints
-                elif categoria == 'Dormitórios':
-                    info = int(info)
-
-                lista_tuplas.append((categoria, info))
-
-            aps_dados_limpos.append(dict(lista_tuplas))
-
-        df = pd.DataFrame(aps_dados_limpos)
-        # Preço limite dos aps = R$ 8000
-        return df[df['Total / Mês'] <= 8000]
-
-    #Dados limpos
-    df_final = Limpar_Dados(aps_dados)
-
-    # Salvando Dataset em csv
-    output_dir = os.path.join(os.path.dirname(__file__), '..', 'dados')
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'dados_imoveis.csv')
-    df_final.to_csv(output_path, index=False)
-
-Scraper()
+    if imovel.titulo is None:
+        titulo = soup.find("h1")
+        imovel.titulo = titulo.get_text(" ", strip=True) if titulo else None

@@ -17,7 +17,7 @@ jobs:
   atualizar_csv:
     # Versão fixa: o ubuntu-latest passa a ser o Ubuntu 26 a partir de 19/10/2026
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 45
 
     steps:
       - name: Checkout do repositório
@@ -33,19 +33,20 @@ jobs:
       - name: Instalar dependências do scraper
         run: pip install -r requirements-scraper.txt
 
-      # Paliativo até o scraper novo (Fase 1): falhas temporárias do site
-      # ganham até 3 tentativas, cada uma limitada a 25 min
+      # Cada download já tenta de novo sozinho; estas tentativas cobrem o
+      # site fora do ar por alguns minutos. O scraper sai com erro (e não
+      # grava o CSV) se o resultado parecer quebrado.
       - name: Rodar o scraper
         run: |
           for tentativa in 1 2 3; do
             echo "::group::Tentativa $tentativa"
-            if timeout 25m python -m scraper.cardinali; then
+            if timeout 15m python -m scraper; then
               echo "::endgroup::"
               exit 0
             fi
             echo "::endgroup::"
             echo "::warning::Tentativa $tentativa do scraper falhou"
-            sleep 120
+            sleep 300
           done
           echo "::error::Scraper falhou nas 3 tentativas"
           exit 1
@@ -54,7 +55,7 @@ jobs:
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add dados/dados_imoveis.csv
+          git add dados/imoveis.csv
           if git diff --cached --quiet; then
             echo "Sem mudanças nos dados"
             exit 0
