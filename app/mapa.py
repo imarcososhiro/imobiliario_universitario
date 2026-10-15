@@ -1,126 +1,98 @@
-import os
-import folium
-import branca.colormap as cm
-from app.bairros import RODOVIARIA, UFSCAR, USP, Buscar_contorno
+"""Mapa com a área de cada bairro pintada conforme a métrica escolhida."""
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 
-# Caminho absoluto da pasta de imagens, pra funcionar independente de onde o app é executado
-PASTA_ASSETS = os.path.join(os.path.dirname(__file__), '..', 'assets')
+import branca.colormap as cm
+import folium
+import pandas as pd
+
+from app import formatacao as fmt
+from app.bairros import RODOVIARIA, UFSCAR, USP, buscar_contorno
+
+PASTA_ASSETS = Path(__file__).resolve().parent.parent / "assets"
+
+# Escala sequencial de um tom só (azul), do claro ao escuro: mais escuro = valor maior.
+# Um tom só lê bem para daltônicos; arco-íris e vermelho/verde não.
+ESCALA_AZUL = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+COR_SEM_DADO = "#c3c2b7"
+
+
+@dataclass(frozen=True)
+class MetricaMapa:
+    rotulo: str
+    formatar: Callable
+    leitura: str  # o que significa a cor mais escura
+
+
+METRICAS_MAPA = {
+    "indice": MetricaMapa("Índice custo-benefício", fmt.numero, "mais escuro = melhor"),
+    "custo_por_dormitorio": MetricaMapa("Custo por dormitório", fmt.reais, "mais escuro = mais caro"),
+    "total_mensal": MetricaMapa("Aluguel total", fmt.reais, "mais escuro = mais caro"),
+    "preco_m2": MetricaMapa("Preço por m²", fmt.reais, "mais escuro = mais caro"),
+    "imoveis": MetricaMapa("Oferta de imóveis", fmt.numero, "mais escuro = mais opções"),
+}
 
 # Explicação no tooltip dos bairros cujo contorno não veio pronto do OpenStreetMap
 AVISO_CONTORNO = {
-    'enderecos': 'Contorno estimado pelos endereços do bairro no OpenStreetMap',
-    'aproximado': 'Contorno aproximado (o bairro só tem um ponto no OpenStreetMap)',
+    "enderecos": "Contorno estimado pelos endereços do bairro no OpenStreetMap",
+    "aproximado": "Contorno aproximado (o bairro só tem um ponto no OpenStreetMap)",
 }
 
-# Cria o mapa com os dados
-def Criar_Mapa(df_infos, analise): # Pega o DataFrame do script analises.py
-    mapa = folium.Map(location=(-21.99428551038883, -47.88574553256096), zoom_start=14, min_zoom=12,max_zoom=15,scrollWheelZoom=True,zoom_control=False,doubleClickZoom=False)
 
-    # Criando legendas pra descrição das cores
-    if analise == 'Media':
-        legenda = 'Média de valores por bairro'
-    elif analise == 'Quantidade':
-        legenda = 'Quantidade de imóveis por bairro'
+def _texto_tooltip(linha: pd.Series, origem: str, distancia_ate: str) -> str:
+    linhas = [
+        f"<b style='font-size:14px'>{linha['bairro']}</b>",
+        f"{fmt.numero(linha['imoveis'])} imóveis · {fmt.km(linha['distancia_km'])} {distancia_ate}",
+        f"Aluguel total (mediana): <b>{fmt.reais(linha['total_mensal'])}</b>",
+        f"Por dormitório (mediana): <b>{fmt.reais(linha['custo_por_dormitorio'])}</b>",
+        f"Preço por m² (mediana): <b>{fmt.reais(linha['preco_m2'])}</b>",
+        f"Índice custo-benefício: <b>{fmt.numero(linha['indice'])}</b>",
+    ]
+    if origem in AVISO_CONTORNO:
+        linhas.append(f"<em style='font-size:11px'>{AVISO_CONTORNO[origem]}</em>")
+    return "<br>".join(linhas)
 
-    # Definindo valor máximo e mínimo da análise pra definir os extremos do degradê de cores
-    valor_minimo = df_infos[analise].min()
-    valor_maximo = df_infos[analise].max()
 
-    # Definindo cores do degradê de cada análise
-    if analise == 'Media':
-        degrade = ['pink','red']
-    elif analise == 'Quantidade':
-        degrade = ['lightblue','darkblue']
+def _marcador(mapa: folium.Map, local, imagem: str, tamanho: tuple[int, int], ancora: tuple[int, int], nome: str):
+    icone = folium.CustomIcon(icon_image=str(PASTA_ASSETS / imagem), icon_size=tamanho, icon_anchor=ancora)
+    folium.Marker(location=local, icon=icone, tooltip=nome).add_to(mapa)
 
-    # Cria uma escala de cores baseado nos extremos definidos
-    escala_cores = cm.LinearColormap(
-            colors=degrade,
-            vmin=valor_minimo,
-            vmax=valor_maximo
-        )
 
-    # Legenda informativa das cores
-    escala_cores.caption = legenda
-    mapa.add_child(escala_cores)
+def criar_mapa(resumo: pd.DataFrame, metrica: str, distancia_ate: str, ver_cidade_toda: bool) -> folium.Map:
+    """Pinta cada bairro do resumo (uma linha por bairro, de metricas.resumo_por_bairro).
 
-    # Função que pinta a área do bairro com a cor do degradê
-    def Area_bairro(contorno, cor, html, mapa):
+    `distancia_ate` completa o texto da distância no tooltip, ex.: "da USP".
+    """
+    centro, zoom = ((-22.005, -47.89), 13) if ver_cidade_toda else ((-21.997, -47.888), 14)
+    mapa = folium.Map(location=centro, zoom_start=zoom, min_zoom=12, max_zoom=17, tiles="OpenStreetMap")
+
+    definicao = METRICAS_MAPA[metrica]
+    valores = resumo[metrica].dropna()
+    escala = None
+    if not valores.empty:
+        minimo, maximo = float(valores.min()), float(valores.max())
+        escala = cm.LinearColormap(ESCALA_AZUL, vmin=minimo, vmax=maximo if maximo > minimo else minimo + 1,
+                                   max_labels=6)
+        escala.width = 300  # o padrão (450 px) não cabe no mapa no celular
+        escala.caption = definicao.rotulo  # a leitura das cores vai no texto abaixo do mapa
+        mapa.add_child(escala)
+
+    for _, linha in resumo.iterrows():
+        contorno = buscar_contorno(linha["bairro"])
+        if contorno is None:  # bairro sem contorno: aparece só na lista de imóveis
+            continue
+        valor = linha[metrica]
+        cor = escala(valor) if escala is not None and pd.notna(valor) else COR_SEM_DADO
         folium.GeoJson(
             contorno,
             # Borda branca fina: separa bairros vizinhos que têm cores parecidas
-            style_function=lambda feature: {'fillColor': cor, 'color': 'white', 'weight': 1.2, 'fillOpacity': 0.65},
-            highlight_function=lambda feature: {'color': '#1f2937', 'weight': 2.5, 'fillOpacity': 0.85},
-            tooltip=folium.Tooltip(html),
+            style_function=lambda _, cor=cor: {"fillColor": cor, "color": "white", "weight": 1.2, "fillOpacity": 0.7},
+            highlight_function=lambda _: {"color": "#1f2937", "weight": 2.5, "fillOpacity": 0.85},
+            tooltip=folium.Tooltip(_texto_tooltip(linha, contorno["properties"]["origem"], distancia_ate)),
         ).add_to(mapa)
 
-    # Pintando os bairros um por um (iterando linha por linha)
-    for index,linha in df_infos.iterrows():
-        contorno = Buscar_contorno(linha['Bairro'])
-        if contorno is None: # Bairro sem contorno no mapa: aparece só na tabela
-            continue
-        cor = escala_cores(linha[analise]) # Cor do bairro no degradê, conforme a análise escolhida
-
-        # Formatações html pra deixar os popups mais bonitos
-        html_texto = f"""
-            <h4 style='margin-bottom:5px;'>{linha['Bairro']}</h4>
-            <strong>Média:</strong> R$ {linha['Media']}<br>
-            <strong>Imóveis disponíveis:</strong> {linha['Quantidade']}<br>
-            <strong>Valor mínimo:</strong> R$ {linha['Min']}<br>
-            <strong>Valor máximo:</strong> R$ {linha['Max']}
-            """
-        aviso = AVISO_CONTORNO.get(contorno['properties']['origem'])
-        if aviso:
-            html_texto += f"<br><em style='font-size:11px;'>{aviso}</em>"
-
-        Area_bairro(contorno, cor, html_texto, mapa)
-
-
-    # Add logos da USP e da UFSCar nas respectivas localizações
-    icone_usp = os.path.join(PASTA_ASSETS, 'usp-logo.png')
-    icone_usp_mapa = folium.CustomIcon(
-        icon_image=icone_usp,
-        icon_size=(70, 70),
-        icon_anchor=(25, 23),
-        popup_anchor=(0, 0)
-    )
-
-    folium.Marker(
-        location=USP,
-        icon=icone_usp_mapa,
-        popup='USP CAASO',
-        tooltip='Universidade de São Paulo (USP)'
-    ).add_to(mapa)
-
-    icone_ufscar = os.path.join(PASTA_ASSETS, 'ufscar-logo.png')
-    icone_ufscar_mapa = folium.CustomIcon(
-        icon_image=icone_ufscar,
-        icon_size=(90, 90),
-        icon_anchor=(40, 23),
-        popup_anchor=(0, 0)
-    )
-
-    folium.Marker(
-        location=UFSCAR,
-        icon=icone_ufscar_mapa,
-        popup='UFSCar',
-        tooltip='Universidade Federal de São Carlos (UFSCar)'
-    ).add_to(mapa)
-    #mapa.save('mapa.html')
-    #webbrowser.open('mapa.html') #Comandos pra teste do script também
-
-    icone_rodoviaria = os.path.join(PASTA_ASSETS, 'icone-rodoviaria.png')
-    icone_rodoviaria_mapa = folium.CustomIcon(
-        icon_image=icone_rodoviaria,
-        icon_size=(45, 45),
-        icon_anchor=(40, 23),
-        popup_anchor=(0, 0)
-    )
-
-    folium.Marker(
-        location=RODOVIARIA,
-        icon=icone_rodoviaria_mapa,
-        popup='Rodoviária de São Carlos',
-        tooltip='Rodoviária de São Carlos'
-    ).add_to(mapa)
-
+    _marcador(mapa, USP, "usp-logo.png", (70, 70), (25, 23), "Universidade de São Paulo (USP)")
+    _marcador(mapa, UFSCAR, "ufscar-logo.png", (90, 90), (40, 23), "Universidade Federal de São Carlos (UFSCar)")
+    _marcador(mapa, RODOVIARIA, "icone-rodoviaria.png", (45, 45), (40, 23), "Rodoviária de São Carlos")
     return mapa

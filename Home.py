@@ -1,195 +1,99 @@
 import streamlit as st
-import streamlit_folium
-import pandas as pd
-from app.mapa import Criar_Mapa
-from app.analises import Tirar_infos_bairros # Temporário
-from app.dados import Carregar_imoveis
-import os
-from datetime import datetime
-from datetime import timedelta
+from streamlit_folium import st_folium
 
-diretorio_atual = os.path.dirname(__file__)
+from app import formatacao as fmt
+from app.dados import aplicar_filtros, carregar_imoveis
+from app.interface import (barra_lateral, destaque, grade_de_cartoes, indicadores, ranking_bairros,
+                           tabela_imoveis)
+from app.mapa import METRICAS_MAPA, PASTA_ASSETS, criar_mapa
+from app.metricas import MINIMO_IMOVEIS_BAIRRO, escolher_campus, indice_custo_beneficio, resumo_por_bairro
 
-st.set_page_config(
-    page_title="Análise Imobiliária Universitária",
-    page_icon=":chart_with_upwards_trend:",
-    layout="wide",
-)
+st.set_page_config(page_title="Análise Imobiliária Universitária", page_icon=":material/home_work:", layout="wide")
 
-"""
-# :material/query_stats: Análise imobiliária universitária  
-##### Região de São Carlos - SP | USP (Campus I) e UFSCar 
-"""
+TODOS = "Todos os bairros"
+ALTURA_MAPA = 520
+# Ordenação dos cartões: rótulo -> (coluna, crescente?)
+ORDENACAO = {
+    "Melhor custo-benefício": ("indice", False),
+    "Menor custo por dormitório": ("custo_por_dormitorio", True),
+    "Menor aluguel total": ("total_mensal", True),
+    "Mais perto do campus": ("distancia_km", True),
+    "Maior área": ("area_m2", False),
+}
 
+imoveis = carregar_imoveis()
+escolhas = barra_lateral(imoveis)
+df = escolher_campus(aplicar_filtros(imoveis, escolhas.filtros), escolhas.campus)
+df = df.assign(indice=indice_custo_beneficio(df, escolhas.pesos))
+resumo = resumo_por_bairro(df)
 
-# Função que exibe métricas de média e quantidade de apartamentos
-def exibir_metricas(df_filtrado):
-    # Criando métricas
-    titulo_metrica1 = 'Média geral'
-    media_geral = df_filtrado['Total / Mês'].mean()
+st.title(":material/query_stats: Análise imobiliária universitária")
+st.caption(f"Aluguéis em São Carlos (SP) perto da USP e da UFSCar · atualizado em "
+           f"{fmt.data(imoveis['coletado_em'].max())} · dados da imobiliária Cardinali")
 
-    titulo_metrica2 = 'Valor mínimo'
-    valor_minimo = df_filtrado['Total / Mês'].min()
+if df.empty:
+    st.info("Nenhum imóvel com esses filtros. Tente ampliar a faixa de preço, os dormitórios ou a área.")
+    st.image(str(PASTA_ASSETS / "nopuedeser.jpg"), width=320)
+    st.stop()
 
-    titulo_metrica3 = 'Valor máximo'
-    valor_maximo = df_filtrado['Total / Mês'].max()
+indicadores(df)
+destaque(resumo)
 
-    titulo_metrica4 = 'Quantidade de Imóveis'
-    qtde_aps = df_filtrado['Total / Mês'].count()
+with st.expander("Como ler este painel", icon=":material/help:"):
+    st.markdown(f"""
+- **Custo por dormitório**: total por mês (aluguel + condomínio + IPTU) dividido pelo nº de dormitórios. É quanto
+  cada morador pagaria dividindo o imóvel, o jeito mais justo de comparar uma kitnet com uma casa de república.
+- **Preço por m²**: total por mês dividido pela área. Mostra quanto espaço o dinheiro compra.
+- **Distância**: em linha reta, do bairro até o campus escolhido na barra lateral. O site não informa o endereço
+  dos imóveis, então todos os imóveis de um bairro têm a mesma distância.
+- **Índice custo-benefício (0 a 100)**: compara os imóveis da tela entre si nos três critérios acima. Em cada
+  um, o melhor imóvel ganha 100 e o pior, 0; o índice é a média, com os pesos que você escolher na barra
+  lateral. Por isso ele muda quando você muda os filtros.
+- No mapa e no ranking, cada bairro mostra a **mediana** dos seus imóveis, que não se deixa levar por um
+  anúncio fora da curva.
+""")
 
-    titulo_metrica5 = 'Quantidade de Bairros'
-    qtde_im = df_filtrado['Bairro'].nunique()
+coluna_mapa, coluna_ranking = st.columns([3, 2], gap="large")
+with coluna_mapa:
+    metrica = st.radio("Pintar os bairros por", list(METRICAS_MAPA), horizontal=True,
+                       format_func=lambda m: METRICAS_MAPA[m].rotulo, key="metrica_mapa")
+    mapa = criar_mapa(resumo, metrica, escolhas.distancia_ate,
+                      ver_cidade_toda=not escolhas.filtros.so_regiao_universitaria)
+    retorno = st_folium(mapa, key="mapa", height=ALTURA_MAPA, use_container_width=True,
+                        returned_objects=["last_active_drawing"])
+    st.caption(f"Cor de cada bairro: mediana dos imóveis, {METRICAS_MAPA[metrica].leitura}. "
+               "Passe o mouse num bairro para ver os números; clique para ver os imóveis dele logo abaixo.")
+with coluna_ranking:
+    st.subheader("Bairros com melhor custo-benefício")
+    st.caption(f"Bairros com pelo menos {MINIMO_IMOVEIS_BAIRRO} imóveis; valores são a mediana do bairro.")
+    ranking_bairros(resumo, altura=ALTURA_MAPA)
 
+# Clicar num bairro do mapa seleciona o bairro na lista de imóveis. O mapa devolve o último
+# bairro clicado em toda execução, então só um clique novo muda a seleção.
+clicado = ((retorno or {}).get("last_active_drawing") or {}).get("properties", {}).get("bairro")
+if clicado and clicado != st.session_state.get("ultimo_bairro_clicado"):
+    st.session_state["ultimo_bairro_clicado"] = clicado
+    st.session_state["bairro"] = clicado
 
-    # Exibindo métricas em colunas
-    col1,col2,col3 = st.columns(3)
-    with col1:
-        st.metric(titulo_metrica1, f'R$ {media_geral.round(2)}')
-    with col2:
-        st.metric(titulo_metrica2, f'R$ {valor_minimo.round(2)}')
-    with col3:
-        st.metric(titulo_metrica3, f'R$ {valor_maximo.round(2)}')
+st.header("Imóveis", anchor="imoveis")
+bairros = [TODOS] + sorted(df["bairro"].unique())
+if st.session_state.get("bairro") not in bairros:
+    st.session_state["bairro"] = TODOS
+coluna_bairro, coluna_ordem, coluna_quantidade = st.columns([2, 2, 1])
+bairro = coluna_bairro.selectbox("Bairro", bairros, key="bairro")
+ordem = coluna_ordem.selectbox("Ordenar por", list(ORDENACAO), key="ordem")
+quantidade = coluna_quantidade.radio("Mostrar", [12, 24, 48], horizontal=True, key="quantidade")
 
-    col4,col5 = st.columns(2)
-    with col4:
-        st.metric(titulo_metrica4, qtde_aps)
+selecao = df if bairro == TODOS else df[df["bairro"] == bairro]
+coluna, crescente = ORDENACAO[ordem]
+selecao = selecao.sort_values([coluna, "total_mensal"], ascending=[crescente, True], na_position="last")
+st.caption(f"{fmt.numero(len(selecao))} imóveis" + ("" if bairro == TODOS else f" em {bairro}")
+           + (f" · mostrando os {quantidade} primeiros" if len(selecao) > quantidade else ""))
+grade_de_cartoes(selecao.head(quantidade), escolhas.distancia_ate)
 
-    with col5:
-        st.metric(titulo_metrica5,  qtde_im)
+with st.expander(f"Ver todos os {fmt.numero(len(selecao))} imóveis em uma tabela", icon=":material/table:"):
+    tabela_imoveis(selecao)
 
-
-# Criando filtros
-# Exibe o layout de filtro de preço, e recebe o filtro do usuário
-def Intervalo_Slider():
-    range_min = df_principal['Total / Mês'].min()
-    range_max = df_principal['Total / Mês'].max()
-    range_slider = (st.sidebar.slider('Selecione um intervalo',
-                    range_min, range_max,
-                    value=(range_min, range_max)
-                    ))
-    return range_slider
-
-# Exibe o layout de filtro de dormitórios, e recebe o filtro do usuário
-def Dormitorios_num():
-    dormitorios = df_principal['Dormitórios'].dropna().astype(int).unique()
-    numero_dormitorios = st.sidebar.segmented_control(
-    "Número de dormitórios", sorted(dormitorios), selection_mode="multi"
-    )
-    return numero_dormitorios
-
-# Exibe o layout de filtro de análise, e recebe o filtro do usuário
-def Analise_Escolhida():
-    analise_escolhida = st.sidebar.radio(
-        "Filtrar cores por",
-        ('Média de preço', 'Oferta de apartamentos')
-    )
-    if analise_escolhida == 'Média de preço':
-        analise_escolhida = 'Media' #nome da coluna que existe no df
-    elif analise_escolhida == 'Oferta de apartamentos':
-        analise_escolhida = 'Quantidade' #nome da coluna que existe no df
-    return analise_escolhida
-
-# Layout da exibição da tabela com a listagem dos apartamentos por bairro
-def exibir_tabelas_bairros(df_filtro,opcao_bairro):
-
-    # Exibir nada inicialmente
-    if opcao_bairro == 'Todos':
-        return df_filtro[['Tipo','Bairro','Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Banheiros','Suítes','Garagens','Aluguel Cheio']].sort_values(by='Total / Mês')
-    else:
-        filtro = df_filtro[df_filtro['Bairro'] == opcao_bairro] #Listar dados só do bairro escolhido
-        st.write("Imóveis em:", opcao_bairro)
-        return filtro[['Link','Total / Mês','Aluguel com Bonificação','Condomínio','IPTU','Dormitórios','Banheiros','Suítes','Garagens','Aluguel Cheio']].sort_values(by='Total / Mês')
-
-def Tipo_Escolhido():
-    tipo_escolhido = st.sidebar.radio(
-        "Tipo de imóvel",
-        ('Todos','Apartamento','Casa')
-    )
-
-    return tipo_escolhido
-
-# Exibe o layout de filtro de área, e recebe o filtro do usuário
-def Area_Escolhida():
-    return st.sidebar.radio(
-        "Área",
-        ('Região universitária', 'Cidade toda'),
-        help='Região universitária: bairros que chegam a até 2,2 km da USP ou da UFSCar'
-    )
-
-area = Area_Escolhida()
-
-#Lendo dados do arquivo csv diariamente atualizado
-df_principal = Carregar_imoveis(so_regiao_universitaria=(area == 'Região universitária'))
-
-tipo = Tipo_Escolhido()
-n_dormitorios = Dormitorios_num()
-intervalo = Intervalo_Slider()
-analise = Analise_Escolhida()
-
-# Aplicando filtros no banco de dados e printando mapa
-
-# Primeiro filtro (prioritário): tipo de apartamento desejado
-if tipo == 'Todos':
-    df_tipo = df_principal
-else:
-    df_tipo = df_principal[df_principal['Tipo'] == tipo]
-
-# Baseado no primeiro filtro, os outros são aplicados
-
-# Se tiver filtro de dormitório, filtra por preço e dormitório
-if len(n_dormitorios) > 0:
-    df_filtrado = df_tipo[(df_tipo['Total / Mês'] <= intervalo[1]) & (df_tipo['Total / Mês'] >= intervalo[0]) & (df_tipo['Dormitórios'].isin(n_dormitorios))]
-
-# Se não tiver, filtra só por preço
-else:
-    df_filtrado = df_tipo[(df_tipo['Total / Mês'] <= intervalo[1]) & (df_tipo['Total / Mês'] >= intervalo[0])]
-
-df_info = Tirar_infos_bairros(df_filtrado) # Produz um dataframe de métricas gerais (Média, mediana, valor mín, max, etc), conforme o filtro aplicado pelo usuário
-mapa = Criar_Mapa(df_info, analise) # Cria o mapa a partir dessas métricas
-
-# Estruturas try/except pra se não tiver apartamento com algum filtro, não imprimir erro
-
-# Exibir as métricas e o mapa gerado, conforme os filtros
-try:
-    exibir_metricas(df_filtrado)
-    mapa_st = streamlit_folium.st_folium(
-            mapa,
-            width=900,
-            height=500,
-            )
-except:
-    st.header("Não há imóveis com esses filtros")
-    st.image(os.path.join(diretorio_atual, 'assets', 'nopuedeser.jpg'))
-
-
-# Exibir o dataframe com especificações de todos os apartamentos, por bairro, com link
-'''
-## Detalhamento
-'''
-
-#Select box com todos os bairros no mapa
-opcoes_bairros = st.selectbox(
-        'Selecione o bairro',
-        ['Todos'] + sorted(df_filtrado['Bairro'].unique())
-    )
-
-# column_config pra fazer a URL virar hiperlink,
-# display_text pra encurtar a URL
-st.dataframe(
-    exibir_tabelas_bairros(df_filtrado, opcoes_bairros),
-    hide_index=True,
-    column_config={
-        'Link': st.column_config.LinkColumn('Link',
-        display_text='Ver Anúncio')
-    })
-
-
-
-
-
-
-
-
-
-
-
+st.divider()
+st.caption("Projeto acadêmico, sem vínculo com a imobiliária. Código e dados: "
+           "[github.com/imarcososhiro/imobiliario_universitario](https://github.com/imarcososhiro/imobiliario_universitario)")
