@@ -33,7 +33,7 @@ imoveis = marcar_novidades(carregar_imoveis(), historico)
 st.title("Bora achar um lugar pra morar?")
 st.markdown(f"Os aluguéis de São Carlos perto da **USP** e da **UFSCar**, num lugar só. "
             f"Atualizado todo dia (o último foi em {fmt.data(imoveis['coletado_em'].max())}), "
-            "com os dados da imobiliária Cardinali.")
+            "com os anúncios das imobiliárias Cardinali e Roca.")
 
 escolhas = filtros()
 df = aplicar_filtros(imoveis, escolhas)
@@ -98,10 +98,12 @@ with st.expander("Como funciona", icon=":material/help:"):
   ela não se deixa levar por um anúncio caríssimo.
 - **Distância**: em linha reta, do bairro até o campus. O site não informa o endereço, então todos os imóveis de
   um bairro aparecem com a mesma distância. O tempo a pé soma 30% ao caminho, porque as ruas fazem curvas.
-- **Novo** e **Baixou de preço**: comparando com as coletas dos últimos dias (o site é lido todo dia desde
-  nov/2025). Imóveis reservados ficam de fora.
+- **Novo** e **Baixou de preço**: comparando com as coletas dos últimos dias (os sites são lidos todo dia).
+  Imóveis reservados ficam de fora.
+- **Também na outra imobiliária?**: o mesmo bairro e nº de quartos, com área e preço parecidos, aparece nas
+  duas. Pode ser o mesmo imóvel anunciado duas vezes (às vezes com preços diferentes), então vale comparar.
 """)
 
 st.divider()
-st.caption("Projeto acadêmico, sem vínculo com a imobiliária. Código e dados: "
+st.caption("Projeto acadêmico, sem vínculo com as imobiliárias. Código e dados: "
            "[github.com/imarcososhiro/imobiliario_universitario](https://github.com/imarcososhiro/imobiliario_universitario)")

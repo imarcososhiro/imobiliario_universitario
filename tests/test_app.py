@@ -1,10 +1,11 @@
 """Testes da leitura de dados do dashboard (usam o dados/geo/bairros.geojson do repositório)."""
 import csv
 
+import pandas as pd
 import pytest
 
 from app.bairros import UFSCAR, USP, buscar_contorno, buscar_coords, distancia_km, padronizar_bairro
-from app.dados import Filtros, aplicar_filtros, carregar_imoveis
+from app.dados import Filtros, aplicar_filtros, carregar_imoveis, marcar_duplicatas
 from scraper.modelo import COLUNAS
 
 
@@ -86,3 +87,24 @@ def test_distancia_vem_do_campus_escolhido(csv_de_exemplo):
     usp = aplicar_filtros(df, Filtros(campus="USP")).set_index("codigo")["distancia_km"]
     ufscar = aplicar_filtros(df, Filtros(campus="UFSCar")).set_index("codigo")["distancia_km"]
     assert usp[2] < 1 < 3 < ufscar[2]  # o Jardim Paraíso fica do lado da USP
+
+
+def test_filtro_de_imobiliaria(csv_de_exemplo):
+    df = carregar_imoveis(csv_de_exemplo).assign(fonte=["cardinali", "roca", "cardinali", "roca"])
+    assert sorted(aplicar_filtros(df, Filtros(imobiliarias=["roca"]))["codigo"]) == [2, 6]
+    assert len(aplicar_filtros(df, Filtros(imobiliarias=[]))) == 4  # nada marcado: todas
+
+
+def test_marcar_duplicatas():
+    df = pd.DataFrame([
+        # fonte, bairro, quartos, área, total
+        ("cardinali", "Centro", 2, 60.0, 2000.0),
+        ("roca", "Centro", 2, 61.0, 2080.0),        # área 1,6% e total 3,8% diferentes: parece o mesmo
+        ("roca", "Centro", 2, 60.0, 2300.0),        # total 13% maior: outro imóvel
+        ("roca", "Centro", 3, 60.0, 2000.0),        # outro nº de quartos
+        ("roca", "Jardim Paraíso", 2, 60.0, 2000.0),  # outro bairro
+        ("cardinali", "Centro", 2, 60.0, 2010.0),   # mesma imobiliária que o 1º: não é duplicata entre elas
+        ("roca", "Centro", 2, None, 2000.0),        # sem área: não compara
+    ], columns=["fonte", "bairro", "dormitorios", "area_m2", "total_mensal"], index=range(10, 17))
+    duplicata = marcar_duplicatas(df)["duplicata_de"]
+    assert duplicata.dropna().to_dict() == {10: "roca", 11: "cardinali", 15: "roca"}

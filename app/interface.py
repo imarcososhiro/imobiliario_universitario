@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from app import formatacao as fmt
-from app.dados import DORMITORIOS_OU_MAIS, Filtros
+from app.dados import DORMITORIOS_OU_MAIS, IMOBILIARIAS, Filtros
 from app.historico import DIAS_NOVIDADE
 from app.metricas import CAMPI, MINIMO_IMOVEIS_BAIRRO
 
@@ -47,6 +47,8 @@ CSS = """
         box-shadow: 0 2px 6px rgba(23, 26, 38, .2); }
 .selo.novo { background: #4f46e5; color: #fff; }
 .selo.queda { background: #0b7a43; color: #fff; }
+.selo.duplicata { background: #fff; color: #171a26; cursor: help; }
+.cartao .detalhes span.imobiliaria { background: #eef0fe; color: #4f46e5; font-weight: 600; }
 .cartao .corpo { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
 .cartao .preco { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
 .cartao .preco small { font-size: 14px; font-weight: 600; color: #5d6275; letter-spacing: 0; }
@@ -95,7 +97,7 @@ def estilo() -> None:
 def filtros() -> Filtros:
     """As perguntas do topo da página, do jeito que um estudante pensa na busca."""
     with st.container(border=True):
-        campus, quartos, tipo = st.columns([1, 1.3, 1.4])
+        campus, quartos, tipo, imobiliaria = st.columns([1, 1.2, 1.6, 1.2])
         escolha_campus = campus.radio("Você estuda na", list(CAMPI), horizontal=True, key="campus",
                                       help="A distância é medida até o Campus 1 da USP ou até a UFSCar")
         dormitorios = quartos.pills(
@@ -103,6 +105,9 @@ def filtros() -> Filtros:
             format_func=lambda n: f"{n}+" if n == DORMITORIOS_OU_MAIS else str(n),
             help="Vai dividir com amigos? Cada quarto conta como uma pessoa no preço por pessoa")
         escolha_tipo = tipo.radio("Tipo", list(TIPOS), horizontal=True, key="tipo")
+        imobiliarias = imobiliaria.pills("Imobiliária", list(IMOBILIARIAS), selection_mode="multi",
+                                         format_func=IMOBILIARIAS.get, key="imobiliarias",
+                                         help="Nenhuma marcada: mostra os imóveis de todas")
         preco, distancia = st.columns(2)
         preco_max = preco.select_slider(
             "Até quanto por pessoa?", PRECOS_POR_PESSOA, value=SEM_LIMITE, key="preco",
@@ -114,7 +119,8 @@ def filtros() -> Filtros:
                                                      "informa o endereço dos imóveis)")
     return Filtros(campus=escolha_campus, distancia_max_km=DISTANCIAS[distancia_max], tipo=TIPOS[escolha_tipo],
                    dormitorios=list(dormitorios or []),
-                   preco_max_por_pessoa=None if preco_max == SEM_LIMITE else float(preco_max))
+                   preco_max_por_pessoa=None if preco_max == SEM_LIMITE else float(preco_max),
+                   imobiliarias=list(imobiliarias or []))
 
 
 def numeros(df: pd.DataFrame, historico_carregado: bool) -> None:
@@ -173,6 +179,10 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
         selos += '<span class="selo novo">Novo</span>'
     if pd.notna(imovel["total_anterior"]):
         selos += '<span class="selo queda">Baixou de preço</span>'
+    if pd.notna(imovel["duplicata_de"]):
+        outras = " e ".join(IMOBILIARIAS.get(fonte, fonte) for fonte in imovel["duplicata_de"].split(", "))
+        selos += (f'<span class="selo duplicata" title="Outro anúncio com o mesmo bairro e nº de quartos, área '
+                  f'e preço parecidos: pode ser o mesmo imóvel. Vale comparar.">Também na {outras}?</span>')
     if selos:
         selos = f'<div class="selos">{selos}</div>'
 
@@ -185,7 +195,7 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
         total += f' · antes <s>{fmt.reais(imovel["total_anterior"])}</s>'
 
     titulo = imovel["titulo"] if isinstance(imovel["titulo"], str) else f"{imovel['subtipo']} em {imovel['bairro']}"
-    detalhes = [imovel["tipo"]]
+    detalhes = [imovel["tipo"]]  # o primeiro chip (a imobiliária) é montado à parte, com destaque
     if pd.notna(imovel["dormitorios"]):
         detalhes.append(f"{int(imovel['dormitorios'])} {'quarto' if imovel['dormitorios'] == 1 else 'quartos'}")
     if pd.notna(imovel["area_m2"]):
@@ -199,7 +209,8 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
         f'<div class="foto">{imagem}{selos}</div>'
         f'<div class="corpo"><div class="preco">{preco}</div><div class="total">{total}</div>'
         f'<div class="titulo">{html.escape(titulo)}</div><div class="lugar">{lugar}</div>'
-        f'<div class="detalhes">{"".join(f"<span>{html.escape(str(d))}</span>" for d in detalhes)}</div>'
+        f'<div class="detalhes"><span class="imobiliaria">{IMOBILIARIAS.get(imovel["fonte"], imovel["fonte"])}</span>'
+        f'{"".join(f"<span>{html.escape(str(d))}</span>" for d in detalhes)}</div>'
         "</div></a>"
     )
 
@@ -213,6 +224,7 @@ def cartoes(df: pd.DataFrame, campus: str) -> None:
 def tabela_imoveis(df: pd.DataFrame) -> None:
     colunas = {
         "titulo": st.column_config.TextColumn("Anúncio", width="large"),
+        "imobiliaria": st.column_config.TextColumn("Imobiliária"),
         "bairro": st.column_config.TextColumn("Bairro"),
         "custo_por_dormitorio": st.column_config.NumberColumn("Por pessoa (R$)", format="localized"),
         "total_mensal": st.column_config.NumberColumn("Total por mês (R$)", format="localized"),
@@ -227,8 +239,13 @@ def tabela_imoveis(df: pd.DataFrame) -> None:
         "aluguel": st.column_config.NumberColumn("Aluguel (R$)", format="localized"),
         "condominio": st.column_config.NumberColumn("Condomínio (R$)", format="localized"),
         "iptu": st.column_config.NumberColumn("IPTU (R$)", format="localized"),
+        "duplicata_de": st.column_config.TextColumn(
+            "Talvez também em", help="Outra imobiliária com um anúncio parecido (bairro, quartos, área e preço)"),
         "url": st.column_config.LinkColumn("Link", display_text="Ver anúncio"),
     }
+    nomes = lambda fontes: ", ".join(IMOBILIARIAS.get(fonte, fonte) for fonte in fontes.split(", "))  # noqa: E731
+    df = df.assign(imobiliaria=df["fonte"].map(IMOBILIARIAS).fillna(df["fonte"]),
+                   duplicata_de=df["duplicata_de"].map(nomes, na_action="ignore"))
     tabela = df[list(colunas)].assign(custo_por_dormitorio=lambda t: t["custo_por_dormitorio"].round(),
                                       distancia_km=lambda t: t["distancia_km"].round(1))
     st.dataframe(tabela, hide_index=True, column_config=colunas)
