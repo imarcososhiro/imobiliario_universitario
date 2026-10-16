@@ -25,6 +25,18 @@ def km(valor) -> str:
     return SEM_DADO if _vazio(valor) else f"{numero(valor, 1)} km"
 
 
+def minutos_a_pe(distancia_km) -> str:
+    """Tempo aproximado de caminhada: 1,2 km -> "~20 min a pé".
+
+    A distância é em linha reta e as ruas fazem curvas, então soma 30% ao caminho e
+    anda a 4,8 km/h (80 m por minuto), arredondando para múltiplos de 5 minutos.
+    """
+    if _vazio(distancia_km):
+        return SEM_DADO
+    minutos = distancia_km * 1000 * 1.3 / 80
+    return f"~{max(5, 5 * round(minutos / 5))} min a pé"
+
+
 def metros_quadrados(valor) -> str:
     return SEM_DADO if _vazio(valor) else f"{numero(valor)} m²"
 
