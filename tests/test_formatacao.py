@@ -19,3 +19,9 @@ def test_numero_km_e_area():
 
 def test_data():
     assert fmt.data(date(2026, 10, 15)) == "15/10/2026"
+
+
+def test_minutos_a_pe():
+    assert fmt.minutos_a_pe(1.2) == "~20 min a pé"   # 1,2 km em linha reta: ~1,56 km pelas ruas
+    assert fmt.minutos_a_pe(0.1) == "~5 min a pé"    # nunca menos de 5 minutos
+    assert fmt.minutos_a_pe(float("nan")) == fmt.SEM_DADO
