@@ -51,7 +51,15 @@ CARACTERISTICAS = {
 
 
 class ErroDeExtracao(Exception):
-    """O HTML não está no formato esperado (provavelmente o site mudou)."""
+    """O HTML não está no formato esperado (provavelmente o site mudou).
+
+    Quando a página inteira está disponível, ela vai junto em `html`, para ser
+    salva e investigada (vira artefato da execução no GitHub Actions).
+    """
+
+    def __init__(self, mensagem: str, html: str | None = None):
+        super().__init__(mensagem)
+        self.html = html
 
 
 def url_listagem(categoria: str, pagina: int) -> str:
@@ -100,10 +108,12 @@ def listar_urls(cliente) -> tuple[list[str], int]:
     anunciados = 0
     for categoria in CATEGORIAS:
         for pagina in range(1, MAX_PAGINAS + 1):
-            links, tem_proxima, total = extrair_listagem(baixar(cliente, url_listagem(categoria, pagina)))
+            html = baixar(cliente, url_listagem(categoria, pagina))
+            links, tem_proxima, total = extrair_listagem(html)
             if pagina == 1:
                 if not links or total is None:
-                    raise ErroDeExtracao(f"listagem de {categoria} sem imóveis ou sem total: o site mudou?")
+                    raise ErroDeExtracao(f"listagem de {categoria} sem imóveis ou sem total: o site mudou?",
+                                         html=html)
                 total_categoria = total
             novos = [url for url in links if url not in urls]
             urls.update(dict.fromkeys(novos))
