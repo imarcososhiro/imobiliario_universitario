@@ -103,10 +103,6 @@ def test_paginas_funcionam_sem_historico(monkeypatch, tmp_path):
     assert any("não pôde ser carregado" in caption.value for caption in at.caption)
     assert not any("Novo]" in markdown.value for markdown in at.markdown)
 
-    at = abrir("pages/Gráficos.py")
-    assert not at.exception
-    assert "não pôde ser carregado" in at.info[0].value
-
 
 def test_pagina_principal_sem_resultados_mostra_aviso():
     at = abrir("Home.py")
@@ -115,23 +111,3 @@ def test_pagina_principal_sem_resultados_mostra_aviso():
     assert not at.exception
     assert "Nenhum imóvel" in at.info[0].value
 
-
-def test_pagina_de_graficos():
-    at = abrir("pages/Gráficos.py")
-    assert not at.exception
-    assert len(at.get("arrow_vega_lite_chart")) == 3  # o último é a tendência
-    at.selectbox(key="destaque_grafico").set_value("Centro").run()
-    assert not at.exception
-
-
-@pytest.mark.parametrize("mudar", [
-    lambda at: at.radio(key="medida_tendencia").set_value("total_mensal"),
-    lambda at: at.selectbox(key="bairro_tendencia").set_value("Centro"),
-    lambda at: at.sidebar.radio(key="area").set_value("Cidade toda"),
-], ids=["aluguel total", "bairro", "cidade toda"])
-def test_tendencia_na_pagina_de_graficos(mudar):
-    at = abrir("pages/Gráficos.py")
-    mudar(at)
-    at.run()
-    assert not at.exception
-    assert len(at.get("arrow_vega_lite_chart")) == 3

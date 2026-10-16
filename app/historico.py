@@ -3,7 +3,7 @@
 O Streamlit Cloud só tem o branch main. Por isso o app baixa o branch `data` inteiro como um
 .tar.gz direto do GitHub (poucos MB), extrai os Parquet numa pasta temporária e consulta tudo
 com DuckDB (historico/consultas.py). Se o download falhar, o dashboard continua funcionando,
-só sem as novidades e sem a tendência de preços.
+só sem as novidades.
 """
 import logging
 import os
@@ -20,8 +20,6 @@ import duckdb
 import pandas as pd
 import streamlit as st
 
-from app.dados import preparar_imoveis
-from app.metricas import MINIMO_IMOVEIS_BAIRRO
 from historico import consultas
 
 URL_HISTORICO = "https://codeload.github.com/imarcososhiro/imobiliario_universitario/tar.gz/refs/heads/data"
@@ -44,7 +42,6 @@ class Historico:
     primeiro_dia: pd.Timestamp
     ultimo_dia: pd.Timestamp
     por_imovel: pd.DataFrame  # quando cada imóvel apareceu, último total e última mudança de preço
-    semanal: pd.DataFrame     # cada imóvel em cada semana, limpo pelas mesmas regras do CSV do dia
 
 
 def extrair_snapshots(arquivo: BinaryIO, pasta: Path) -> int:
@@ -73,7 +70,6 @@ def ler_historico(pasta: Path) -> Historico:
         datas = consultas.datas_disponiveis(con)
         resumo = consultas.resumo_por_imovel(con)
         mudancas = consultas.mudancas_de_preco(con)
-        semanal = consultas.ultima_observacao_por_semana(con)
     finally:
         con.close()  # solta os arquivos: no Windows, a pasta temporária só pode ser apagada depois
 
@@ -81,9 +77,7 @@ def ler_historico(pasta: Path) -> Historico:
     ultima_mudanca = mudancas.groupby(CHAVE).tail(1).rename(columns={"coletado_em": "data_mudanca"})
     por_imovel = resumo[CHAVE + ["primeira_vez", "ultimo_total"]].merge(
         ultima_mudanca[CHAVE + ["data_mudanca", "total_anterior", "total_novo"]], on=CHAVE, how="left")
-    # Inteiros com falta (dormitórios, vagas...) viram float, como acontece quando o pandas lê o CSV
-    semanal = semanal.astype({coluna: "float64" for coluna in semanal.select_dtypes("Int64").columns})
-    return Historico(pd.Timestamp(datas[0]), pd.Timestamp(datas[-1]), por_imovel, preparar_imoveis(semanal))
+    return Historico(pd.Timestamp(datas[0]), pd.Timestamp(datas[-1]), por_imovel)
 
 
 @st.cache_data(ttl=timedelta(hours=HORAS_EM_CACHE), show_spinner="Baixando o histórico de preços...")
@@ -146,19 +140,3 @@ def marcar_novidades(imoveis: pd.DataFrame, historico: Historico | None) -> pd.D
               & (info["total_mensal"] == info["total_novo"]))
     return imoveis.assign(novo=novo, total_anterior=info["total_anterior"].where(baixou), novidade=novo | baixou)
 
-
-def tendencia_semanal(semanal: pd.DataFrame, coluna: str, rotulo: str, bairro: str | None = None) -> pd.DataFrame:
-    """Mediana de `coluna` por semana: uma série com todos os imóveis (chamada `rotulo`) e,
-    se pedir, outra só com os de um bairro.
-
-    Semanas com menos de MINIMO_IMOVEIS_BAIRRO imóveis ficam de fora, como no resto do painel.
-    Colunas: semana, serie, mediana, imoveis.
-    """
-    series = {rotulo: semanal}
-    if bairro:
-        series[bairro] = semanal[semanal["bairro"] == bairro]
-    partes = []
-    for nome, df in series.items():
-        por_semana = df.dropna(subset=[coluna]).groupby("semana")[coluna].agg(mediana="median", imoveis="size")
-        partes.append(por_semana[por_semana["imoveis"] >= MINIMO_IMOVEIS_BAIRRO].reset_index().assign(serie=nome))
-    return pd.concat(partes, ignore_index=True)[["semana", "serie", "mediana", "imoveis"]]

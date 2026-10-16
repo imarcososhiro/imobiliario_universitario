@@ -6,8 +6,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from app.historico import (baixar_historico, extrair_snapshots, ler_historico, marcar_novidades,
-                           tendencia_semanal)
+from app.historico import baixar_historico, extrair_snapshots, ler_historico, marcar_novidades
 from historico.consultas import INICIO_CIDADE_TODA
 from historico.snapshot import salvar_snapshot
 from scraper.coleta import salvar_csv
@@ -96,10 +95,6 @@ def test_ler_historico(historico_completo):
     imovel_1 = historico_completo.por_imovel.set_index("codigo").loc[1]
     assert (imovel_1["data_mudanca"], imovel_1["total_anterior"], imovel_1["total_novo"]) == (
         pd.Timestamp(2026, 10, 18), 1000.0, 900.0)
-    # O semanal passa pelas mesmas regras do CSV do dia: tem as métricas e a região universitária
-    semanal = historico_completo.semanal
-    assert {"custo_por_dormitorio", "regiao_universitaria", "reservado"} <= set(semanal.columns)
-    assert semanal["dormitorios"].dtype == "float64"
 
 
 def test_baixar_historico_de_um_tar_gz(tmp_path):
@@ -137,21 +132,3 @@ def test_marcar_novidades_sem_historico():
     assert not marcados["novo"].any() and not marcados["novidade"].any()
     assert marcados["total_anterior"].isna().all()
 
-
-# --- tendência ----------------------------------------------------------------------------
-
-def test_tendencia_semanal():
-    semana_1, semana_2 = pd.Timestamp(2026, 10, 5), pd.Timestamp(2026, 10, 12)
-    linhas = ([(semana_1, "Centro", valor) for valor in (1000, 1200, 1400)]
-              + [(semana_1, "Jardim Paraíso", valor) for valor in (800, 850, 900)]
-              + [(semana_2, "Centro", valor) for valor in (1100, 1300)]      # só 2: fica fora da série do Centro
-              + [(semana_2, "Jardim Paraíso", valor) for valor in (700, None, 900, 1000)])  # sem dado não conta
-    semanal = pd.DataFrame(linhas, columns=["semana", "bairro", "custo_por_dormitorio"])
-
-    tendencia = tendencia_semanal(semanal, "custo_por_dormitorio", "Região", bairro="Centro")
-    assert tendencia.values.tolist() == [
-        [semana_1, "Região", 950.0, 6],
-        [semana_2, "Região", 1000.0, 5],
-        [semana_1, "Centro", 1200.0, 3],
-    ]
-    assert set(tendencia_semanal(semanal, "custo_por_dormitorio", "Região")["serie"]) == {"Região"}
