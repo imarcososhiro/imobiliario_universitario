@@ -1,7 +1,9 @@
 """Testes do alerta de coleta quebrada, contra um GitHub falso que roda na própria máquina."""
 import json
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
@@ -144,3 +146,9 @@ def test_etapas_que_falharam():
     assert alertas.etapas_que_falharam("não é JSON") == []
     assert alertas.etapas_que_falharam(None) == []
 
+
+def test_etapas_conhecidas_sao_os_ids_do_workflow():
+    """Se alguém renomear um `id` no workflow, o aviso passaria a mostrar o id cru: este teste avisa antes."""
+    workflow = (Path(__file__).resolve().parent.parent / ".github" / "workflows" / "main.yml").read_text(
+        encoding="utf-8")
+    assert set(re.findall(r"^\s+id: (\w+)$", workflow, flags=re.MULTILINE)) == set(alertas.ETAPAS)

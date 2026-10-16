@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write  # abrir (e fechar) a issue de aviso quando a coleta quebra
 
 # Evita duas execuções simultâneas brigando pelo push do CSV
 concurrency:
@@ -37,17 +38,24 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-scraper.txt
 
+      # Os `id` dos passos aparecem no aviso de falha (scraper/alertas.py diz qual etapa quebrou)
       - name: Instalar dependências do scraper
+        id: dependencias
         run: pip install -r requirements-scraper.txt
 
       # Cada download já tenta de novo sozinho; estas tentativas cobrem o
       # site fora do ar por alguns minutos. O scraper sai com erro (e não
       # grava o CSV) se o resultado parecer quebrado.
+      # O tee guarda a saída em coleta.log (o fim dele vai no aviso de falha).
+      # Com `shell: bash`, o Actions liga o pipefail: o resultado de
+      # "python | tee" é o do python, e não o do tee (que nunca falha).
       - name: Rodar o scraper
+        id: scraper
+        shell: bash
         run: |
           for tentativa in 1 2 3; do
             echo "::group::Tentativa $tentativa"
-            if timeout 15m python -m scraper; then
+            if timeout 15m python -m scraper 2>&1 | tee -a coleta.log; then
               echo "::endgroup::"
               exit 0
             fi
@@ -59,6 +67,7 @@ jobs:
           exit 1
 
       - name: Commit e push do CSV atualizado
+        id: csv
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
@@ -72,6 +81,7 @@ jobs:
           git push origin main
 
       - name: Guardar snapshot do dia no histórico
+        id: snapshot
         run: |
           arquivo=$(python -m historico.snapshot dados/imoveis.csv --destino historico-data/snapshots)
           cd historico-data
@@ -85,3 +95,29 @@ jobs:
           git commit -m "Snapshot $(basename "$arquivo" .parquet)"
           git pull --rebase origin data
           git push origin data
+
+      # O HTML das páginas que o scraper não conseguiu ler fica 14 dias na página da
+      # execução, para investigar (e virar fixture de teste com tests/salvar_fixture.py)
+      - name: Guardar as páginas com falha
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: paginas-com-falha
+          path: falhas/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Os avisos usam python3 e só a biblioteca padrão: funcionam mesmo se a
+      # instalação do Python ou das dependências for o que falhou
+      - name: Avisar que a coleta quebrou
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PASSOS: ${{ toJSON(steps) }}
+        run: python3 -m scraper.alertas falhou --log coleta.log
+
+      - name: Fechar o aviso de coleta quebrada
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m scraper.alertas resolvida
