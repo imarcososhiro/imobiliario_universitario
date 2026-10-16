@@ -1,6 +1,7 @@
 """Cliente HTTP que tenta de novo quando o site falha temporariamente."""
 import logging
 import random
+import threading
 import time
 
 import httpx
@@ -23,6 +24,25 @@ class PaginaIndisponivel(Exception):
 
 class FalhaDeDownload(Exception):
     """A página não pôde ser baixada nem depois de todas as tentativas."""
+
+
+class ContadorDeTentativas:
+    """Conta as novas tentativas de download, para o resumo da coleta.
+
+    Os downloads rodam em paralelo, então a contagem usa uma trava (Lock).
+    Um número alto é sinal de problema no site ou na conexão, mesmo sem falhas.
+    """
+
+    def __init__(self):
+        self._trava = threading.Lock()
+        self.total = 0
+
+    def contar(self) -> None:
+        with self._trava:
+            self.total += 1
+
+
+NOVAS_TENTATIVAS = ContadorDeTentativas()
 
 
 def criar_cliente(**opcoes) -> httpx.Client:
@@ -65,6 +85,7 @@ def baixar(cliente: httpx.Client, url: str) -> str:
 
         if tentativa == TENTATIVAS:
             raise FalhaDeDownload(f"{motivo} após {TENTATIVAS} tentativas: {url}")
+        NOVAS_TENTATIVAS.contar()
         espera = ESPERA_BASE_S * 2 ** (tentativa - 1) * random.uniform(0.8, 1.2)
         log.warning("%s em %s (tentativa %d/%d); tentando de novo em %.1f s",
                     motivo, url, tentativa, TENTATIVAS, espera)

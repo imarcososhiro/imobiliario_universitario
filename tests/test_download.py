@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import httpx
 import pytest
 
-from scraper.download import TENTATIVAS, FalhaDeDownload, PaginaIndisponivel, baixar, criar_cliente
+from scraper.download import NOVAS_TENTATIVAS, TENTATIVAS, FalhaDeDownload, PaginaIndisponivel, baixar, criar_cliente
 
 
 def cliente_com(responder):
@@ -15,8 +15,10 @@ def cliente_com(responder):
 
 def test_tenta_de_novo_depois_de_erro_temporario():
     respostas = iter([httpx.Response(503), httpx.Response(200, text="ok")])
+    antes = NOVAS_TENTATIVAS.total
     with cliente_com(lambda request: next(respostas)) as cliente:
         assert baixar(cliente, "https://exemplo.com/a") == "ok"
+    assert NOVAS_TENTATIVAS.total == antes + 1
 
 
 def test_tenta_de_novo_depois_de_erro_de_conexao():
