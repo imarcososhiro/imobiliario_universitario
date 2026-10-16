@@ -13,6 +13,12 @@ VALOR_MAXIMO = 8000  # Teto do projeto para o valor total (aluguel + condomínio
 # Kitnets e studios às vezes vêm sem nº de dormitórios no site, mas têm um cômodo
 SUBTIPOS_DE_UM_DORMITORIO = "kitchnet|kitnet|studio|flat"
 DORMITORIOS_OU_MAIS = 4  # a opção "4+" do filtro
+IMOBILIARIAS = {"cardinali": "Cardinali", "roca": "Roca"}  # valor da coluna `fonte` -> nome para mostrar
+
+# Possível duplicata: a mesma casa ou apartamento anunciado por duas imobiliárias. O critério é
+# o mesmo bairro e nº de quartos, com área e total por mês parecidos (diferença relativa até:)
+TOLERANCIA_AREA = 0.03
+TOLERANCIA_TOTAL = 0.05
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -32,7 +38,27 @@ def carregar_imoveis(caminho: Path = CAMINHO_CSV) -> pd.DataFrame:
     um_comodo = df["subtipo"].str.lower().str.contains(SUBTIPOS_DE_UM_DORMITORIO, na=False)
     df.loc[um_comodo & df["dormitorios"].isna(), "dormitorios"] = 1
     df["coletado_em"] = pd.to_datetime(df["coletado_em"]).dt.date
-    return adicionar_metricas(df)
+    return marcar_duplicatas(adicionar_metricas(df))
+
+
+def marcar_duplicatas(df: pd.DataFrame) -> pd.DataFrame:
+    """Acrescenta `duplicata_de`: a outra imobiliária (ou outras) que parece anunciar o mesmo imóvel.
+
+    Só avisa, nunca junta os anúncios: a área e o preço parecidos podem ser coincidência (dois
+    apartamentos iguais no mesmo prédio, por exemplo). Sem área ou nº de quartos, não compara.
+    """
+    colunas = ["fonte", "bairro", "dormitorios", "area_m2", "total_mensal"]
+    base = df[colunas].dropna().assign(linha=lambda t: t.index)
+    pares = base.merge(base, on=["bairro", "dormitorios"], suffixes=("", "_outro"))
+
+    def parecidos(coluna, tolerancia):
+        maior = pares[[coluna, f"{coluna}_outro"]].max(axis=1)
+        return (pares[coluna] - pares[f"{coluna}_outro"]).abs() <= tolerancia * maior
+
+    pares = pares[(pares["fonte"] != pares["fonte_outro"]) & parecidos("area_m2", TOLERANCIA_AREA)
+                  & parecidos("total_mensal", TOLERANCIA_TOTAL)]
+    outras = pares.groupby("linha")["fonte_outro"].agg(lambda fontes: ", ".join(sorted(set(fontes))))
+    return df.assign(duplicata_de=outras.reindex(df.index))
 
 
 @dataclass
@@ -42,6 +68,7 @@ class Filtros:
     tipo: str | None = None                               # "Apartamento", "Casa" ou None (tanto faz)
     dormitorios: list[int] = field(default_factory=list)  # vazio = todos; 4 vale "4 ou mais"
     preco_max_por_pessoa: float | None = None             # None = sem limite
+    imobiliarias: list[str] = field(default_factory=list)  # valores de `fonte`; vazio = todas
 
 
 def aplicar_filtros(df: pd.DataFrame, filtros: Filtros) -> pd.DataFrame:
@@ -57,4 +84,6 @@ def aplicar_filtros(df: pd.DataFrame, filtros: Filtros) -> pd.DataFrame:
         selecao &= df["dormitorios"].isin(filtros.dormitorios) | (quatro_ou_mais & (df["dormitorios"] >= DORMITORIOS_OU_MAIS))
     if filtros.preco_max_por_pessoa is not None:
         selecao &= df["custo_por_dormitorio"] <= filtros.preco_max_por_pessoa
+    if filtros.imobiliarias:
+        selecao &= df["fonte"].isin(filtros.imobiliarias)
     return df[selecao]

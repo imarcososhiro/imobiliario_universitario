@@ -89,7 +89,8 @@ def test_pagina_principal():
     lambda at: at.select_slider(key="preco").set_value(1000),
     lambda at: at.selectbox(key="ordem").set_value("Mais perto do campus"),
     lambda at: at.selectbox(key="bairro").set_value("Centro"),
-], ids=["campus", "distancia", "tipo", "quartos", "preco", "ordem", "bairro"])
+    lambda at: at.button_group(key="imobiliarias").set_value(["cardinali"]),
+], ids=["campus", "distancia", "tipo", "quartos", "preco", "ordem", "bairro", "imobiliaria"])
 def test_pagina_principal_com_filtros(mudar):
     at = abrir("Home.py")
     mudar(at)
