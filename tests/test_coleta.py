@@ -4,11 +4,12 @@ import csv
 import httpx
 import pytest
 
-from scraper import cardinali, coleta
+from scraper import cardinali, coleta, roca
 from scraper.coleta import Comparacao, Falha, ResultadoColeta, coletar, comparar, ler_anterior, validar
 from scraper.download import criar_cliente
 from scraper.modelo import COLUNAS, Imovel
 from tests.conftest import ler_fixture
+from tests.test_roca import responder_roca
 
 LUTFALLA = "/alugar/Sao-Carlos/Apartamento/Padrao/Jardim-Lutfalla/241116"
 CENTRO = "/alugar/Sao-Carlos/Apartamento/Padrao/Centro/241165"
@@ -24,8 +25,9 @@ def listagem(total, *links):
 
 
 def site_falso(instavel=(), **substituicoes):
-    """Site com as fixtures; os caminhos em `instavel` respondem HTTP 503 na primeira vez."""
+    """Sites com as fixtures (Cardinali e Roca); os caminhos em `instavel` respondem HTTP 503 na primeira vez."""
     ja_falharam = set()
+    roca = responder_roca()
     paginas = {
         "/alugar/Sao-Carlos/Apartamento?pag=1": listagem(4, LUTFALLA, CENTRO, "/comprar" + SANTA_MONICA, RETIRADO),
         "/alugar/Sao-Carlos/Casa?pag=1": listagem(1, VILA_MONTEIRO),
@@ -37,6 +39,8 @@ def site_falso(instavel=(), **substituicoes):
     paginas.update(substituicoes)
 
     def responder(request):
+        if request.url.host == "roca.com.br":
+            return roca(request)
         caminho = request.url.raw_path.decode()
         if caminho in instavel and caminho not in ja_falharam:
             ja_falharam.add(caminho)
@@ -97,12 +101,13 @@ def test_comparar_com_a_coleta_anterior(tmp_path):
         Imovel(codigo=2, fonte="t", url="", tipo="", subtipo="", bairro="", total_mensal=1800.0),
         Imovel(codigo=4, fonte="t", url="", tipo="", subtipo="", bairro="", total_mensal=900.0),
     ]
-    assert comparar(hoje, ler_anterior(caminho)) == Comparacao(novos=1, sairam=1, mudaram_de_preco=1)
-    assert comparar(hoje, ler_anterior(tmp_path / "nao_existe.csv")) is None
+    assert comparar(hoje, ler_anterior(caminho)["t"]) == Comparacao(novos=1, sairam=1, mudaram_de_preco=1)
+    assert ler_anterior(tmp_path / "nao_existe.csv") is None
+    assert comparar(hoje, None) is None  # fonte nova: nada para comparar
 
 
-def imoveis_falsos(quantidade):
-    return [Imovel(codigo=i, fonte="teste", url="", tipo="", subtipo="", bairro="") for i in range(quantidade)]
+def imoveis_falsos(quantidade, fonte="teste"):
+    return [Imovel(codigo=i, fonte=fonte, url="", tipo="", subtipo="", bairro="") for i in range(quantidade)]
 
 
 def test_validar_aceita_coleta_normal():
@@ -136,7 +141,10 @@ def test_main_grava_o_csv(tmp_path, usar_site_falso):
         leitor = csv.DictReader(arquivo)
         linhas = list(leitor)
     assert leitor.fieldnames == COLUNAS
-    assert [linha["codigo"] for linha in linhas] == ["203503", "240579", "241116", "241165"]
+    # As duas imobiliárias no mesmo CSV, cada uma em ordem de código
+    assert [(linha["fonte"], linha["codigo"]) for linha in linhas][:4] == [
+        ("cardinali", "203503"), ("cardinali", "240579"), ("cardinali", "241116"), ("cardinali", "241165")]
+    assert [linha["fonte"] for linha in linhas[4:]] == ["roca"] * 5
     assert linhas[0]["total_mensal"] == ""  # aluguel "Consulte-nos"
     assert linhas[2]["total_mensal"] == "1554.0"
 
@@ -144,7 +152,7 @@ def test_main_grava_o_csv(tmp_path, usar_site_falso):
 def test_main_nao_sobrescreve_quando_a_coleta_encolhe(tmp_path, usar_site_falso):
     usar_site_falso()
     saida = tmp_path / "imoveis.csv"
-    coleta.salvar_csv(imoveis_falsos(20), saida)
+    coleta.salvar_csv(imoveis_falsos(20, fonte="cardinali"), saida)  # a Cardinali cai de 20 para 4
     conteudo_anterior = saida.read_text(encoding="utf-8")
 
     assert rodar_main(tmp_path, saida) == 1
@@ -157,10 +165,10 @@ def test_main_falha_se_a_listagem_mudar_e_guarda_o_html(tmp_path, usar_site_fals
     assert rodar_main(tmp_path, saida) == 1
     assert not saida.exists()
     falhas = tmp_path / "falhas"
-    assert (falhas / "listagem.html").read_text(encoding="utf-8") == "<html>layout novo</html>"
+    assert (falhas / "cardinali_listagem.html").read_text(encoding="utf-8") == "<html>layout novo</html>"
     with (falhas / "falhas.csv").open(encoding="utf-8", newline="") as arquivo:
         [registro] = list(csv.DictReader(arquivo))
-    assert registro["arquivo"] == "listagem.html" and "o site mudou" in registro["motivo"]
+    assert registro["arquivo"] == "cardinali_listagem.html" and "o site mudou" in registro["motivo"]
 
 
 def test_main_escreve_resumo_no_github_actions(tmp_path, usar_site_falso, monkeypatch):
@@ -168,12 +176,22 @@ def test_main_escreve_resumo_no_github_actions(tmp_path, usar_site_falso, monkey
     resumo = tmp_path / "resumo.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(resumo))
     saida = tmp_path / "imoveis.csv"
-    coleta.salvar_csv(imoveis_falsos(3) + [
-        Imovel(codigo=241116, fonte="t", url="", tipo="", subtipo="", bairro="", total_mensal=1600.0)], saida)
+    coleta.salvar_csv(imoveis_falsos(3, fonte="cardinali") + [
+        Imovel(codigo=241116, fonte="cardinali", url="", tipo="", subtipo="", bairro="", total_mensal=1600.0)], saida)
     rodar_main(tmp_path, saida)
     texto = resumo.read_text(encoding="utf-8")
-    assert "| Coletados | 4 |" in texto
-    # Comparação com a coleta anterior: 241116 baixou de 1.600 para 1.554; 3 novos; 3 saíram
-    assert "| Novos desde a última coleta | 3 |" in texto
-    assert "| Saíram do site desde a última coleta | 3 |" in texto
-    assert "| Mudaram de preço | 1 |" in texto
+    assert "| | cardinali | roca |" in texto  # uma coluna por imobiliária
+    assert "| Coletados | 4 | 5 |" in texto
+    # Cardinali, comparada com a coleta anterior: 241116 baixou de 1.600 para 1.554; 3 novos; 3 saíram.
+    # A Roca ainda não estava no CSV: nada para comparar
+    assert "| Novos desde a última coleta | 3 | — |" in texto
+    assert "| Saíram do site desde a última coleta | 3 | — |" in texto
+    assert "| Mudaram de preço | 1 | — |" in texto
+
+
+def test_main_tudo_ou_nada_se_uma_imobiliaria_falhar(tmp_path, usar_site_falso, monkeypatch):
+    usar_site_falso()
+    monkeypatch.setattr(roca, "URL_SITEMAP", "https://roca.com.br/sitemap-que-sumiu.xml")
+    saida = tmp_path / "imoveis.csv"
+    assert rodar_main(tmp_path, saida) == 1
+    assert not saida.exists()  # a Cardinali deu certo, mas o CSV não é gravado só com ela

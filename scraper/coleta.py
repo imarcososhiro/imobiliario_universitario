@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from scraper import cardinali
+from scraper import cardinali, roca
 from scraper.download import NOVAS_TENTATIVAS, PaginaIndisponivel, baixar, criar_cliente
 from scraper.modelo import COLUNAS, Imovel
 
@@ -24,6 +24,7 @@ log = logging.getLogger("scraper")
 
 SAIDA_PADRAO = Path(__file__).resolve().parent.parent / "dados" / "imoveis.csv"
 PASTA_FALHAS_PADRAO = Path("falhas")
+FONTES = (cardinali, roca)  # cada imobiliária é um módulo em scraper/ com FONTE e o jeito de coletar
 DOWNLOADS_SIMULTANEOS = 4
 MAX_TAXA_FALHAS = 0.10          # mais de 10% dos anúncios com erro: o site provavelmente mudou
 MIN_PROPORCAO_ANTERIOR = 0.70   # queda de mais de 30% em relação à última coleta gravada
@@ -83,6 +84,13 @@ def coletar(fonte, cliente, hoje: str | None = None, pasta_falhas: Path | None =
     """Baixa e lê todos os imóveis de uma fonte. Um anúncio com erro não derruba os outros."""
     hoje = hoje or datetime.now(FUSO_BRASILIA).date().isoformat()
     tentativas_antes = NOVAS_TENTATIVAS.total
+    if hasattr(fonte, "baixar_imoveis"):
+        # Fontes com uma busca em JSON (como a Roca) trazem tudo em poucos pedidos, sem uma página por imóvel
+        lote = fonte.baixar_imoveis(cliente, hoje)
+        resultado = ResultadoColeta(imoveis=lote.imoveis, falhas=[Falha(url, motivo) for url, motivo in lote.falhas],
+                                    indisponiveis=lote.indisponiveis, anunciados=lote.anunciados)
+        return _finalizar(resultado, tentativas_antes)
+
     urls, anunciados = fonte.listar_urls(cliente)
     log.info("%d links de imóveis encontrados (%d anunciados no site)", len(urls), anunciados)
     resultado = ResultadoColeta(anunciados=anunciados)
@@ -113,6 +121,10 @@ def coletar(fonte, cliente, hoje: str | None = None, pasta_falhas: Path | None =
             if processados % 100 == 0:
                 log.info("%d/%d imóveis processados", processados, len(urls))
 
+    return _finalizar(resultado, tentativas_antes)
+
+
+def _finalizar(resultado: ResultadoColeta, tentativas_antes: int) -> ResultadoColeta:
     # Ordem fixa por código: o diff diário do CSV no git mostra só o que mudou
     por_codigo: dict[int, Imovel] = {}
     for imovel in sorted(resultado.imoveis, key=lambda im: im.codigo):
@@ -138,17 +150,24 @@ def validar(resultado: ResultadoColeta, quantidade_anterior: int | None) -> list
     return problemas
 
 
-def ler_anterior(caminho: Path) -> dict[int, float | None] | None:
-    """Código -> total mensal da coleta gravada antes desta (None se não houver)."""
+def ler_anterior(caminho: Path) -> dict[str, dict[int, float | None]] | None:
+    """Fonte -> {código: total mensal} da coleta gravada antes desta (None se não houver).
+
+    Separado por fonte porque o mesmo código pode existir em imobiliárias diferentes.
+    """
     if not caminho.exists():
         return None
+    anterior: dict[str, dict[int, float | None]] = {}
     with caminho.open(encoding="utf-8", newline="") as arquivo:
-        return {int(linha["codigo"]): float(linha["total_mensal"]) if linha["total_mensal"] else None
-                for linha in csv.DictReader(arquivo)}
+        for linha in csv.DictReader(arquivo):
+            total = float(linha["total_mensal"]) if linha["total_mensal"] else None
+            anterior.setdefault(linha["fonte"], {})[int(linha["codigo"])] = total
+    return anterior
 
 
 def comparar(imoveis: list[Imovel], anterior: dict[int, float | None] | None) -> Comparacao | None:
-    if anterior is None:
+    """O que mudou numa fonte em relação à coleta anterior dela (None se ela ainda não existia)."""
+    if not anterior:
         return None
     atual = {imovel.codigo: imovel.total_mensal for imovel in imoveis}
     mudaram = sum(1 for codigo, total in atual.items()
@@ -169,40 +188,50 @@ def salvar_csv(imoveis: list[Imovel], caminho: Path) -> None:
     os.replace(temporario, caminho)
 
 
-def escrever_resumo(resultado: ResultadoColeta, problemas: list[str], segundos: float,
-                    comparacao: Comparacao | None = None) -> None:
+def escrever_resumo(resultados: dict[str, ResultadoColeta], problemas: list[str], segundos: float,
+                    comparacoes: dict[str, Comparacao | None]) -> None:
+    """Uma tabela com uma coluna por imobiliária, no log e na página da execução do Actions."""
+    def linha(rotulo, valor):
+        return rotulo, [valor(fonte, resultado) for fonte, resultado in resultados.items()]
+
+    def mudanca(campo):
+        return lambda fonte, _: getattr(comparacoes[fonte], campo) if comparacoes.get(fonte) else "—"
+
     linhas = [
-        ("Anunciados no site", resultado.anunciados),
-        ("Coletados", len(resultado.imoveis)),
+        linha("Anunciados no site", lambda _, r: r.anunciados),
+        linha("Coletados", lambda _, r: len(r.imoveis)),
     ]
-    if comparacao:
+    if any(comparacoes.values()):
         linhas += [
-            ("Novos desde a última coleta", comparacao.novos),
-            ("Saíram do site desde a última coleta", comparacao.sairam),
-            ("Mudaram de preço", comparacao.mudaram_de_preco),
+            linha("Novos desde a última coleta", mudanca("novos")),
+            linha("Saíram do site desde a última coleta", mudanca("sairam")),
+            linha("Mudaram de preço", mudanca("mudaram_de_preco")),
         ]
     linhas += [
-        ("Saíram do site durante a coleta", resultado.indisponiveis),
-        ("Falhas", len(resultado.falhas)),
-        ("Novas tentativas de download", resultado.novas_tentativas),
-        ("Duração", f"{segundos:.0f} s"),
+        linha("Saíram do site durante a coleta", lambda _, r: r.indisponiveis),
+        linha("Falhas", lambda _, r: len(r.falhas)),
+        linha("Novas tentativas de download", lambda _, r: r.novas_tentativas),
     ]
-    for rotulo, valor in linhas:
-        log.info("%s: %s", rotulo, valor)
+    for rotulo, valores in linhas:
+        log.info("%s: %s", rotulo, " · ".join(f"{fonte} {valor}" for fonte, valor in zip(resultados, valores)))
+    log.info("Duração: %.0f s", segundos)
 
     # No GitHub Actions, o resumo também aparece na página da execução
     arquivo_resumo = os.environ.get("GITHUB_STEP_SUMMARY")
     if arquivo_resumo:
         hoje = datetime.now(FUSO_BRASILIA).strftime("%d/%m/%Y")
+        falhas = [falha for resultado in resultados.values() for falha in resultado.falhas]
         with open(arquivo_resumo, "a", encoding="utf-8") as resumo:
-            resumo.write(f"## Coleta de imóveis · {hoje}\n\n| | |\n|---|---:|\n")
-            resumo.write("".join(f"| {rotulo} | {valor} |\n" for rotulo, valor in linhas))
+            resumo.write(f"## Coleta de imóveis · {hoje} · {segundos:.0f} s\n\n")
+            resumo.write("| | " + " | ".join(resultados) + " |\n|---|" + "---:|" * len(resultados) + "\n")
+            resumo.write("".join(f"| {rotulo} | " + " | ".join(map(str, valores)) + " |\n"
+                                 for rotulo, valores in linhas))
             for problema in problemas:
                 resumo.write(f"\n> ❌ {problema}\n")
-            if resultado.falhas:
+            if falhas:
                 resumo.write("\n<details><summary>Falhas (o HTML delas está no artefato "
                              "<code>paginas-com-falha</code>)</summary>\n\n")
-                resumo.write("\n".join(f"- {falha.url}: {falha.motivo}" for falha in resultado.falhas))
+                resumo.write("\n".join(f"- {falha.url}: {falha.motivo}" for falha in falhas))
                 resumo.write("\n</details>\n")
 
 
@@ -218,28 +247,37 @@ def main(argv: list[str] | None = None) -> int:
     shutil.rmtree(args.falhas, ignore_errors=True)  # só as falhas desta execução
 
     inicio = time.monotonic()
-    try:
-        with criar_cliente() as cliente:
-            resultado = coletar(cardinali, cliente, pasta_falhas=args.falhas)
-    except Exception as erro:
-        html = getattr(erro, "html", None)  # ex.: a página de listagem mudou de formato
-        if html:
-            arquivo = salvar_html_da_falha(args.falhas, "listagem", html)
-            registrar_falhas(args.falhas, [Falha("listagem", str(erro), arquivo)])
-        log.exception("A coleta não pôde ser concluída")
-        return 1
+    resultados: dict[str, ResultadoColeta] = {}
+    # Tudo ou nada: se uma imobiliária falhar, o CSV inteiro fica como estava. Gravar só as outras
+    # faria os imóveis dela "saírem" por um dia e bagunçaria o histórico de novidades
+    for fonte in FONTES:
+        try:
+            with criar_cliente() as cliente:
+                resultados[fonte.FONTE] = coletar(fonte, cliente, pasta_falhas=args.falhas)
+        except Exception as erro:
+            html = getattr(erro, "html", None)  # ex.: a página de listagem mudou de formato
+            if html:
+                arquivo = salvar_html_da_falha(args.falhas, f"{fonte.FONTE}_listagem", html)
+                registrar_falhas(args.falhas, [Falha(f"{fonte.FONTE}: listagem", str(erro), arquivo)])
+            log.exception("A coleta da fonte %s não pôde ser concluída", fonte.FONTE)
+            return 1
 
-    if resultado.falhas:
-        registrar_falhas(args.falhas, resultado.falhas)
-    anterior = ler_anterior(args.saida)
-    problemas = validar(resultado, len(anterior) if anterior else None)
-    escrever_resumo(resultado, problemas, time.monotonic() - inicio, comparar(resultado.imoveis, anterior))
+    falhas = [falha for resultado in resultados.values() for falha in resultado.falhas]
+    if falhas:
+        registrar_falhas(args.falhas, falhas)
+    anterior = ler_anterior(args.saida) or {}
+    # Cada imobiliária é comparada com ela mesma: uma queda forte numa não fica escondida pelo total
+    problemas = [f"{fonte}: {problema}" for fonte, resultado in resultados.items()
+                 for problema in validar(resultado, len(anterior.get(fonte, {})) or None)]
+    comparacoes = {fonte: comparar(resultado.imoveis, anterior.get(fonte)) for fonte, resultado in resultados.items()}
+    escrever_resumo(resultados, problemas, time.monotonic() - inicio, comparacoes)
     if problemas:
         for problema in problemas:
             log.error(problema)
         log.error("O CSV NÃO foi atualizado, para não publicar dados quebrados.")
         return 1
 
-    salvar_csv(resultado.imoveis, args.saida)
-    log.info("%d imóveis gravados em %s", len(resultado.imoveis), args.saida)
+    imoveis = [imovel for resultado in resultados.values() for imovel in resultado.imoveis]
+    salvar_csv(imoveis, args.saida)
+    log.info("%d imóveis gravados em %s", len(imoveis), args.saida)
     return 0
