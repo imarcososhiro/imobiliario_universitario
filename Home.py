@@ -1,76 +1,63 @@
+from pathlib import Path
+
 import streamlit as st
 from streamlit_folium import st_folium
 
 from app import formatacao as fmt
 from app.dados import aplicar_filtros, carregar_imoveis
 from app.historico import carregar_historico, marcar_novidades
-from app.interface import (barra_lateral, destaque, grade_de_cartoes, indicadores, novidades, ranking_bairros,
+from app.interface import (bairros_em_conta, cartoes, estilo, filtros, legenda_do_mapa, numeros,
                            tabela_imoveis)
-from app.mapa import METRICAS_MAPA, PASTA_ASSETS, criar_mapa
-from app.metricas import MINIMO_IMOVEIS_BAIRRO, escolher_campus, indice_custo_beneficio, resumo_por_bairro
+from app.mapa import criar_mapa, faixas_de_preco, legenda
+from app.metricas import resumo_por_bairro
 
-st.set_page_config(page_title="Análise Imobiliária Universitária", page_icon=":material/home_work:", layout="wide")
+st.set_page_config(page_title="Onde morar em São Carlos", page_icon=":material/home:", layout="wide")
+estilo()
 
+PASTA_ASSETS = Path(__file__).resolve().parent / "assets"
 TODOS = "Todos os bairros"
-ALTURA_MAPA = 520
-# Ordenação dos cartões: rótulo -> (coluna, crescente?)
+ALTURA_MAPA = 460
+POR_PAGINA = 12
+# Ordem dos cartões: rótulo -> (coluna, crescente?)
 ORDENACAO = {
-    "Melhor custo-benefício": ("indice", False),
-    "Menor custo por dormitório": ("custo_por_dormitorio", True),
+    "Menor preço por pessoa": ("custo_por_dormitorio", True),
     "Menor aluguel total": ("total_mensal", True),
     "Mais perto do campus": ("distancia_km", True),
-    "Maior área": ("area_m2", False),
     "Novidades primeiro": ("novidade", False),  # novos ou que baixaram de preço na última semana
+    "Mais espaço": ("area_m2", False),
 }
 
-historico = carregar_historico()  # None se não der para baixar agora: o painel funciona sem ele
+historico = carregar_historico()  # None se não der para baixar agora: a página funciona sem ele
 imoveis = marcar_novidades(carregar_imoveis(), historico)
-escolhas = barra_lateral(imoveis)
-df = escolher_campus(aplicar_filtros(imoveis, escolhas.filtros), escolhas.campus)
-df = df.assign(indice=indice_custo_beneficio(df, escolhas.pesos))
-resumo = resumo_por_bairro(df)
 
-st.title(":material/query_stats: Análise imobiliária universitária")
-st.caption(f"Aluguéis em São Carlos (SP) perto da USP e da UFSCar · atualizado em "
-           f"{fmt.data(imoveis['coletado_em'].max())} · dados da imobiliária Cardinali")
+st.title("Bora achar um lugar pra morar?")
+st.markdown(f"Os aluguéis de São Carlos perto da **USP** e da **UFSCar**, num lugar só. "
+            f"Atualizado todo dia (o último foi em {fmt.data(imoveis['coletado_em'].max())}), "
+            "com os dados da imobiliária Cardinali.")
+
+escolhas = filtros()
+df = aplicar_filtros(imoveis, escolhas)
 
 if df.empty:
-    st.info("Nenhum imóvel com esses filtros. Tente ampliar a faixa de preço, os dormitórios ou a área.")
+    st.info("Nenhum imóvel com esses filtros. Que tal aumentar a distância, o preço ou os quartos?",
+            icon=":material/search_off:")
     st.image(str(PASTA_ASSETS / "nopuedeser.jpg"), width=320)
     st.stop()
 
-indicadores(df)
-destaque(resumo)
-novidades(df, historico_carregado=historico is not None)
+numeros(df, historico_carregado=historico is not None)
+resumo = resumo_por_bairro(df)
 
-with st.expander("Como ler este painel", icon=":material/help:"):
-    st.markdown(f"""
-- **Custo por dormitório**: total por mês (aluguel + condomínio + IPTU) dividido pelo nº de dormitórios. É quanto
-  cada morador pagaria dividindo o imóvel, o jeito mais justo de comparar uma kitnet com uma casa de república.
-- **Preço por m²**: total por mês dividido pela área. Mostra quanto espaço o dinheiro compra.
-- **Distância**: em linha reta, do bairro até o campus escolhido na barra lateral. O site não informa o endereço
-  dos imóveis, então todos os imóveis de um bairro têm a mesma distância.
-- **Índice custo-benefício (0 a 100)**: compara os imóveis da tela entre si nos três critérios acima. Em cada
-  um, o melhor imóvel ganha 100 e o pior, 0; o índice é a média, com os pesos que você escolher na barra
-  lateral. Por isso ele muda quando você muda os filtros.
-- No mapa e no ranking, cada bairro mostra a **mediana** dos seus imóveis, que não se deixa levar por um
-  anúncio fora da curva.
-""")
-
-coluna_mapa, coluna_ranking = st.columns([3, 2], gap="large")
+# --- Mapa e bairros mais em conta ----------------------------------------------------------
+st.header("Onde ficam", anchor="mapa")
+coluna_mapa, coluna_bairros = st.columns([3, 2], gap="medium")
 with coluna_mapa:
-    metrica = st.radio("Pintar os bairros por", list(METRICAS_MAPA), horizontal=True,
-                       format_func=lambda m: METRICAS_MAPA[m].rotulo, key="metrica_mapa")
-    mapa = criar_mapa(resumo, metrica, escolhas.distancia_ate,
-                      ver_cidade_toda=not escolhas.filtros.so_regiao_universitaria)
-    retorno = st_folium(mapa, key="mapa", height=ALTURA_MAPA, use_container_width=True,
-                        returned_objects=["last_active_drawing"])
-    st.caption(f"Cor de cada bairro: mediana dos imóveis, {METRICAS_MAPA[metrica].leitura}. "
-               "Passe o mouse num bairro para ver os números; clique para ver os imóveis dele logo abaixo.")
-with coluna_ranking:
-    st.subheader("Bairros com melhor custo-benefício")
-    st.caption(f"Bairros com pelo menos {MINIMO_IMOVEIS_BAIRRO} imóveis; valores são a mediana do bairro.")
-    ranking_bairros(resumo, altura=ALTURA_MAPA)
+    retorno = st_folium(criar_mapa(resumo, escolhas.campus, escolhas.distancia_max_km), key="mapa",
+                        height=ALTURA_MAPA, use_container_width=True, returned_objects=["last_active_drawing"])
+    legenda_do_mapa(legenda(faixas_de_preco(resumo["custo_por_dormitorio"])))
+    st.caption("Toque ou clique num bairro para ver os imóveis dele logo abaixo.")
+with coluna_bairros:
+    st.subheader("Bairros mais em conta")
+    bairros_em_conta(resumo, escolhas.campus)
 
 # Clicar num bairro do mapa seleciona o bairro na lista de imóveis. O mapa devolve o último
 # bairro clicado em toda execução, então só um clique novo muda a seleção.
@@ -79,24 +66,41 @@ if clicado and clicado != st.session_state.get("ultimo_bairro_clicado"):
     st.session_state["ultimo_bairro_clicado"] = clicado
     st.session_state["bairro"] = clicado
 
-st.header("Imóveis", anchor="imoveis")
+# --- Imóveis -------------------------------------------------------------------------------
 bairros = [TODOS] + sorted(df["bairro"].unique())
 if st.session_state.get("bairro") not in bairros:
     st.session_state["bairro"] = TODOS
-coluna_bairro, coluna_ordem, coluna_quantidade = st.columns([2, 2, 1])
+st.header("Imóveis", anchor="imoveis")
+coluna_bairro, coluna_ordem = st.columns(2)
 bairro = coluna_bairro.selectbox("Bairro", bairros, key="bairro")
 ordem = coluna_ordem.selectbox("Ordenar por", list(ORDENACAO), key="ordem")
-quantidade = coluna_quantidade.radio("Mostrar", [12, 24, 48], horizontal=True, key="quantidade")
 
 selecao = df if bairro == TODOS else df[df["bairro"] == bairro]
 coluna, crescente = ORDENACAO[ordem]
-selecao = selecao.sort_values([coluna, "total_mensal"], ascending=[crescente, True], na_position="last")
-st.caption(f"{fmt.numero(len(selecao))} imóveis" + ("" if bairro == TODOS else f" em {bairro}")
-           + (f" · mostrando os {quantidade} primeiros" if len(selecao) > quantidade else ""))
-grade_de_cartoes(selecao.head(quantidade), escolhas.distancia_ate)
+selecao = selecao.sort_values([coluna, "custo_por_dormitorio"], ascending=[crescente, True], na_position="last")
+quantidade = st.session_state.setdefault("quantidade", POR_PAGINA)
+st.caption(f"{fmt.numero(len(selecao))} {'imóvel' if len(selecao) == 1 else 'imóveis'}"
+           + ("" if bairro == TODOS else f" em {bairro}"))
+cartoes(selecao.head(quantidade), escolhas.campus)
+if len(selecao) > quantidade:
+    st.button(f"Mostrar mais {min(POR_PAGINA, len(selecao) - quantidade)}", key="mostrar_mais", width="stretch",
+              icon=":material/expand_more:",
+              on_click=lambda: st.session_state.update(quantidade=quantidade + POR_PAGINA))
 
-with st.expander(f"Ver todos os {fmt.numero(len(selecao))} imóveis em uma tabela", icon=":material/table:"):
+with st.expander(f"Ver todos os {fmt.numero(len(selecao))} em uma tabela", icon=":material/table:"):
     tabela_imoveis(selecao)
+
+with st.expander("Como funciona", icon=":material/help:"):
+    st.markdown(f"""
+- **Preço por pessoa**: o total do mês (aluguel + condomínio + IPTU) dividido pelo número de quartos. É quanto
+  cada um pagaria dividindo o imóvel, então dá para comparar uma kitnet com uma casa de república.
+- **Preço típico**: a mediana. Metade dos imóveis custa menos que isso, metade custa mais. Diferente da média,
+  ela não se deixa levar por um anúncio caríssimo.
+- **Distância**: em linha reta, do bairro até o campus. O site não informa o endereço, então todos os imóveis de
+  um bairro aparecem com a mesma distância. O tempo a pé soma 30% ao caminho, porque as ruas fazem curvas.
+- **Novo** e **Baixou de preço**: comparando com as coletas dos últimos dias (o site é lido todo dia desde
+  nov/2025). Imóveis reservados ficam de fora.
+""")
 
 st.divider()
 st.caption("Projeto acadêmico, sem vínculo com a imobiliária. Código e dados: "

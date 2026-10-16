@@ -1,7 +1,5 @@
-"""Peças da interface usadas pelas páginas do dashboard."""
+"""Peças da página: filtros, números do resumo, lista de bairros e os cartões dos imóveis."""
 import html
-import re
-from dataclasses import dataclass
 
 import pandas as pd
 import streamlit as st
@@ -9,191 +7,228 @@ import streamlit as st
 from app import formatacao as fmt
 from app.dados import DORMITORIOS_OU_MAIS, Filtros
 from app.historico import DIAS_NOVIDADE
-from app.metricas import CRITERIOS, MINIMO_IMOVEIS_BAIRRO, QUALQUER_CAMPUS
+from app.metricas import CAMPI, MINIMO_IMOVEIS_BAIRRO
 
-OPCOES_CAMPUS = {"USP": "USP (Campus 1)", "UFSCar": "UFSCar", QUALQUER_CAMPUS: "Tanto faz (o mais perto)"}
-DISTANCIA_ATE = {"USP": "da USP", "UFSCar": "da UFSCar", QUALQUER_CAMPUS: "do campus mais perto"}
-IMPORTANCIA = {"Não importa": 0.0, "Pouco": 0.5, "Normal": 1.0, "Muito": 2.0}
-AREAS = ("Região universitária", "Cidade toda")
+TIPOS = {"Tanto faz": None, "Apartamento": "Apartamento", "Casa": "Casa"}
+# Distância do bairro até o campus, em linha reta (km); None = qualquer distância
+DISTANCIAS = {"A pé (até 1,5 km)": 1.5, "Até 3 km": 3.0, "Até 5 km": 5.0, "Qualquer distância": None}
+SEM_LIMITE = "Sem limite"
+PRECOS_POR_PESSOA = list(range(500, 3001, 100)) + [SEM_LIMITE]
+
+# Estilo dos cartões e da lista de bairros. Fica aqui (e não no config.toml) porque o tema do
+# Streamlit não tem como desenhar esses blocos, que são HTML próprio.
+CSS = """
+<style>
+/* Menos espaço vazio no topo da página (o padrão do Streamlit é bem alto) */
+[data-testid="stMainBlockContainer"] { padding-top: 2.5rem; }
+@media (max-width: 640px) {
+    [data-testid="stMainBlockContainer"] { padding-top: 1rem; }
+    h1 { font-size: 2rem !important; }
+}
+.numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .numeros { grid-template-columns: 1fr 1fr; } }
+.numero { display: flex; flex-direction: column; padding: 14px 16px; border-radius: 18px; background: #fff;
+          border: 1px solid #e6e8f0; }
+.numero b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.numero span { font-weight: 600; font-size: 14px; }
+.numero small { color: #5d6275; font-size: 12.5px; }
+.cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+.cartao {
+    display: flex; flex-direction: column; overflow: hidden; border-radius: 20px; background: #fff;
+    color: #171a26 !important; text-decoration: none !important; border: 1px solid #e6e8f0;
+    box-shadow: 0 1px 2px rgba(23, 26, 38, .05); transition: transform .15s ease, box-shadow .15s ease;
+}
+.cartao:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(23, 26, 38, .12); }
+.cartao .foto { position: relative; aspect-ratio: 4 / 3; background: #eceef4; }
+.cartao .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cartao .sem-foto { display: grid; place-items: center; height: 100%; color: #8a8fa3; font-size: 13px; }
+.cartao .selos { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.selo { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #fff;
+        box-shadow: 0 2px 6px rgba(23, 26, 38, .2); }
+.selo.novo { background: #4f46e5; color: #fff; }
+.selo.queda { background: #0b7a43; color: #fff; }
+.cartao .corpo { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+.cartao .preco { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.cartao .preco small { font-size: 14px; font-weight: 600; color: #5d6275; letter-spacing: 0; }
+.cartao .total { font-size: 13px; color: #5d6275; }
+.cartao .total s { color: #8a8fa3; }
+.cartao .titulo { margin-top: 6px; font-weight: 600; font-size: 14px; line-height: 1.35;
+                  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cartao .lugar { font-size: 13px; color: #5d6275; }
+.cartao .detalhes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cartao .detalhes span { padding: 3px 10px; border-radius: 999px; background: #f1f2f8; font-size: 12.5px; }
+/* No celular, cartões deitados (foto à esquerda): cabem uns 3 por tela, em vez de 1 */
+@media (max-width: 640px) {
+    .cartoes { gap: 12px; }
+    .cartao { flex-direction: row; border-radius: 16px; }
+    .cartao .foto { flex: none; width: 38%; aspect-ratio: auto; min-height: 150px; }
+    .cartao .corpo { padding: 10px 12px 12px; min-width: 0; gap: 2px; }
+    .cartao .preco { font-size: 20px; }
+    .cartao .preco small { font-size: 12.5px; }
+    .cartao .titulo { margin-top: 4px; font-size: 13px; }
+    .cartao .total, .cartao .lugar { font-size: 12px; }
+    .cartao .detalhes { margin-top: 6px; gap: 4px; }
+    .cartao .detalhes span { padding: 2px 8px; font-size: 11.5px; }
+    .cartao .selos { top: 8px; left: 8px; flex-direction: column; align-items: flex-start; }
+    .selo { font-size: 10.5px; padding: 3px 8px; }
+}
+.bairros { display: flex; flex-direction: column; gap: 8px; }
+.bairro-linha { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 16px;
+                background: #fff; border: 1px solid #e6e8f0; }
+.bairro-linha .posicao { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+                         background: #eef0fe; color: #4f46e5; font-weight: 800; font-size: 13px; }
+.bairro-linha .nome { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; }
+.bairro-linha .nome small { display: block; font-weight: 400; color: #5d6275; font-size: 12.5px; }
+.bairro-linha .valor { font-weight: 800; font-size: 16px; white-space: nowrap; }
+.bairro-linha .valor small { font-weight: 500; color: #5d6275; font-size: 12px; }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: #5d6275; margin-top: 4px; }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+</style>
+"""
 
 
-@dataclass
-class Escolhas:
-    campus: str
-    filtros: Filtros
-    pesos: dict[str, float]
-
-    @property
-    def distancia_ate(self) -> str:
-        return DISTANCIA_ATE[self.campus]
+def estilo() -> None:
+    st.html(CSS)
 
 
-def escapar(texto: str) -> str:
-    """Escapa caracteres que o Markdown do Streamlit interpretaria (*, _, #, :emoji:, $...$)."""
-    return re.sub(r"([\\`*_{}\[\]()#+\-.!|<>~$:])", r"\\\1", texto)
+def filtros() -> Filtros:
+    """As perguntas do topo da página, do jeito que um estudante pensa na busca."""
+    with st.container(border=True):
+        campus, quartos, tipo = st.columns([1, 1.3, 1.4])
+        escolha_campus = campus.radio("Você estuda na", list(CAMPI), horizontal=True, key="campus",
+                                      help="A distância é medida até o Campus 1 da USP ou até a UFSCar")
+        dormitorios = quartos.pills(
+            "Quantos quartos?", list(range(1, DORMITORIOS_OU_MAIS + 1)), selection_mode="multi", key="quartos",
+            format_func=lambda n: f"{n}+" if n == DORMITORIOS_OU_MAIS else str(n),
+            help="Vai dividir com amigos? Cada quarto conta como uma pessoa no preço por pessoa")
+        escolha_tipo = tipo.radio("Tipo", list(TIPOS), horizontal=True, key="tipo")
+        preco, distancia = st.columns(2)
+        preco_max = preco.select_slider(
+            "Até quanto por pessoa?", PRECOS_POR_PESSOA, value=SEM_LIMITE, key="preco",
+            format_func=lambda valor: valor if valor == SEM_LIMITE else fmt.reais(valor),
+            help="Aluguel + condomínio + IPTU, dividido pelo número de quartos")
+        distancia_max = distancia.select_slider("Quão perto do campus?", list(DISTANCIAS), value="Até 3 km",
+                                                key="distancia",
+                                                help="Em linha reta, do bairro até o campus (o site não "
+                                                     "informa o endereço dos imóveis)")
+    return Filtros(campus=escolha_campus, distancia_max_km=DISTANCIAS[distancia_max], tipo=TIPOS[escolha_tipo],
+                   dormitorios=list(dormitorios or []),
+                   preco_max_por_pessoa=None if preco_max == SEM_LIMITE else float(preco_max))
 
 
-def barra_lateral(imoveis: pd.DataFrame) -> Escolhas:
-    with st.sidebar:
-        campus = st.radio("Onde você estuda?", list(OPCOES_CAMPUS), format_func=OPCOES_CAMPUS.get, key="campus",
-                          help="Usado para medir a distância de cada bairro até o campus")
-        area = st.radio("Área", AREAS, key="area",
-                        help="Região universitária: bairros que chegam a até 2,2 km da USP ou da UFSCar")
-        tipo = st.radio("Tipo de imóvel", ["Todos", "Apartamento", "Casa"], horizontal=True, key="tipo")
-        dormitorios = st.segmented_control(
-            "Dormitórios", list(range(1, DORMITORIOS_OU_MAIS + 1)), selection_mode="multi", key="dormitorios",
-            format_func=lambda n: f"{n}+" if n == DORMITORIOS_OU_MAIS else str(n))
-        minimo, maximo = int(imoveis["total_mensal"].min()), int(imoveis["total_mensal"].max()) + 1
-        faixa = st.slider("Aluguel total por mês", minimo, maximo, (minimo, maximo), step=50, format="R$ %d",
-                          key="faixa", help="Aluguel + condomínio + IPTU")
-        reservados = st.toggle("Incluir imóveis reservados", key="reservados",
-                               help="Reservados já têm alguém negociando, mas ainda aparecem no site")
-        with st.expander("Ajustar o índice de custo-benefício"):
-            st.caption("Quanto cada critério pesa para você?")
-            pesos = {criterio: IMPORTANCIA[st.select_slider(rotulo, list(IMPORTANCIA), value="Normal",
-                                                            key=f"peso_{criterio}")]
-                     for criterio, rotulo in CRITERIOS.items()}
+def numeros(df: pd.DataFrame, historico_carregado: bool) -> None:
+    """Os números principais da busca, sem jargão: quantos imóveis, preço típico e as novidades.
 
-    filtros = Filtros(so_regiao_universitaria=area == AREAS[0], incluir_reservados=reservados,
-                      tipo=None if tipo == "Todos" else tipo,
-                      dormitorios=list(dormitorios or []), faixa_total=faixa)
-    return Escolhas(campus, filtros, pesos)
-
-
-def indicadores(df: pd.DataFrame) -> None:
-    """Números principais da seleção atual: medianas, para um anúncio fora da curva não distorcer."""
-    colunas = st.columns(4)
-    colunas[0].metric("Imóveis encontrados", fmt.numero(len(df)), border=True,
-                      help=f"Em {df['bairro'].nunique()} bairros")
-    colunas[1].metric("Aluguel total (mediana)", fmt.reais(df["total_mensal"].median()), border=True,
-                      help="Aluguel + condomínio + IPTU, por mês")
-    colunas[2].metric("Por dormitório (mediana)", fmt.reais(df["custo_por_dormitorio"].median()), border=True,
-                      help="Total por mês dividido pelo nº de dormitórios: quanto cada morador pagaria")
-    colunas[3].metric("Preço por m² (mediana)", fmt.reais(df["preco_m2"].median()), border=True,
-                      help="Total por mês dividido pela área do imóvel")
-
-
-def destaque(resumo: pd.DataFrame) -> None:
-    """Uma frase com o bairro de melhor custo-benefício (entre os que têm opções suficientes)."""
-    candidatos = resumo[resumo["imoveis"] >= MINIMO_IMOVEIS_BAIRRO].dropna(subset=["indice"])
-    if candidatos.empty:
-        return
-    melhor = candidatos.sort_values(["indice", "imoveis"], ascending=False).iloc[0]
-    st.markdown(
-        f":material/lightbulb: Melhor custo-benefício: **{escapar(melhor['bairro'])}**, com índice "
-        f"{fmt.numero(melhor['indice'])} e {fmt.reais(melhor['custo_por_dormitorio'])} por dormitório "
-        f"(mediana de {fmt.numero(melhor['imoveis'])} imóveis)")
-
-
-def novidades(df: pd.DataFrame, historico_carregado: bool) -> None:
-    """Uma frase com quantos imóveis da seleção são novos ou baixaram de preço na última semana."""
+    Em HTML (e não st.metric) para virarem uma grade 2 x 2 no celular, em vez de 4 blocos empilhados.
+    """
+    blocos = [
+        (fmt.numero(len(df)), "imóveis pra você", f"em {df['bairro'].nunique()} bairros"),
+        (fmt.reais(df["custo_por_dormitorio"].median()), "preço típico por pessoa", "metade custa menos que isso"),
+    ]
+    if historico_carregado:
+        blocos += [
+            (fmt.numero(int(df["novo"].sum())), "novos esta semana", f"apareceram nos últimos {DIAS_NOVIDADE} dias"),
+            (fmt.numero(int(df["total_anterior"].notna().sum())), "baixaram de preço",
+             f"nos últimos {DIAS_NOVIDADE} dias"),
+        ]
+    st.html('<div class="numeros">' + "".join(
+        f'<div class="numero"><b>{valor}</b><span>{rotulo}</span><small>{detalhe}</small></div>'
+        for valor, rotulo, detalhe in blocos) + "</div>")
     if not historico_carregado:
         st.caption(":material/history: O histórico de preços não pôde ser carregado agora, por isso os "
                    "imóveis novos e as quedas de preço não aparecem. Recarregue a página mais tarde.")
+
+
+def legenda_do_mapa(itens: list[tuple[str, str]]) -> None:
+    faixas = "".join(f'<span><i style="background:{cor}"></i>{texto}</span>' for cor, texto in itens)
+    st.html(f'<div class="legenda"><span><b>Preço típico por pessoa:</b></span>{faixas}</div>')
+
+
+def bairros_em_conta(resumo: pd.DataFrame, campus: str, quantidade: int = 6) -> None:
+    """Os bairros com o menor preço típico por pessoa (entre os que têm imóveis suficientes)."""
+    candidatos = (resumo[resumo["imoveis"] >= MINIMO_IMOVEIS_BAIRRO].dropna(subset=["custo_por_dormitorio"])
+                  .sort_values(["custo_por_dormitorio", "imoveis"], ascending=[True, False]).head(quantidade))
+    if candidatos.empty:
+        st.caption(f"Nenhum bairro tem {MINIMO_IMOVEIS_BAIRRO} imóveis com esses filtros.")
         return
-    novos, baixaram = int(df["novo"].sum()), int(df["total_anterior"].notna().sum())
-    if novos == 0:
-        texto = "Nenhum imóvel novo esta semana"
+    linhas = "".join(
+        f'<div class="bairro-linha"><span class="posicao">{posicao}</span>'
+        f'<div class="nome">{html.escape(linha["bairro"])}<small>{fmt.numero(linha["imoveis"])} imóveis · '
+        f'{fmt.minutos_a_pe(linha["distancia_km"])} da {campus}</small></div>'
+        f'<span class="valor">{fmt.reais(linha["custo_por_dormitorio"])}<small>/pessoa</small></span></div>'
+        for posicao, (_, linha) in enumerate(candidatos.iterrows(), start=1))
+    st.html(f'<div class="bairros">{linhas}</div>')
+
+
+def _cartao(imovel: pd.Series, campus: str) -> str:
+    """Um cartão em HTML. Tudo o que vem do site é escapado antes de entrar no HTML."""
+    foto = imovel["foto_url"]
+    if isinstance(foto, str) and foto.startswith("https://"):
+        imagem = f'<img src="{html.escape(foto, quote=True)}" alt="" loading="lazy">'
     else:
-        texto = f"**{fmt.numero(novos)} {'imóvel novo' if novos == 1 else 'imóveis novos'}** esta semana"
-    if baixaram:
-        texto += f" · {fmt.numero(baixaram)} {'baixou' if baixaram == 1 else 'baixaram'} de preço"
-    st.markdown(f":material/new_releases: {texto}", help=(
-        f"**Novo**: apareceu no site nos últimos {DIAS_NOVIDADE} dias. **Baixou de preço**: o total por mês "
-        f"caiu nos últimos {DIAS_NOVIDADE} dias. Para vê-los no topo da lista, ordene os imóveis por "
-        "\"Novidades primeiro\"."))
+        imagem = '<div class="sem-foto">sem foto</div>'
+    selos = ""
+    if imovel["novo"]:
+        selos += '<span class="selo novo">Novo</span>'
+    if pd.notna(imovel["total_anterior"]):
+        selos += '<span class="selo queda">Baixou de preço</span>'
+    if selos:
+        selos = f'<div class="selos">{selos}</div>'
+
+    if pd.notna(imovel["custo_por_dormitorio"]):
+        preco = f'{fmt.reais(imovel["custo_por_dormitorio"])} <small>/pessoa</small>'
+        total = f'{fmt.reais(imovel["total_mensal"])} por mês no total'
+    else:  # sem nº de quartos não dá para dividir: mostra só o total
+        preco, total = f'{fmt.reais(imovel["total_mensal"])} <small>/mês</small>', "total por mês"
+    if pd.notna(imovel["total_anterior"]):
+        total += f' · antes <s>{fmt.reais(imovel["total_anterior"])}</s>'
+
+    titulo = imovel["titulo"] if isinstance(imovel["titulo"], str) else f"{imovel['subtipo']} em {imovel['bairro']}"
+    detalhes = [imovel["tipo"]]
+    if pd.notna(imovel["dormitorios"]):
+        detalhes.append(f"{int(imovel['dormitorios'])} {'quarto' if imovel['dormitorios'] == 1 else 'quartos'}")
+    if pd.notna(imovel["area_m2"]):
+        detalhes.append(fmt.metros_quadrados(imovel["area_m2"]))
+    lugar = html.escape(imovel["bairro"])
+    if pd.notna(imovel["distancia_km"]):
+        lugar += f" · {fmt.km(imovel['distancia_km'])} da {campus} · {fmt.minutos_a_pe(imovel['distancia_km'])}"
+
+    return (
+        f'<a class="cartao" href="{html.escape(imovel["url"], quote=True)}" target="_blank" rel="noopener">'
+        f'<div class="foto">{imagem}{selos}</div>'
+        f'<div class="corpo"><div class="preco">{preco}</div><div class="total">{total}</div>'
+        f'<div class="titulo">{html.escape(titulo)}</div><div class="lugar">{lugar}</div>'
+        f'<div class="detalhes">{"".join(f"<span>{html.escape(str(d))}</span>" for d in detalhes)}</div>'
+        "</div></a>"
+    )
 
 
-def ranking_bairros(resumo: pd.DataFrame, altura: int, completo: bool = False) -> None:
-    """Bairros do melhor para o pior índice.
-
-    A versão compacta (ao lado do mapa) mostra só os bairros com imóveis suficientes e três
-    colunas; a completa mostra todos os bairros e todas as colunas.
-    """
-    colunas = ["bairro", "imoveis", "custo_por_dormitorio", "distancia_km", "indice"]
-    if not completo:
-        resumo = resumo[resumo["imoveis"] >= MINIMO_IMOVEIS_BAIRRO]
-        colunas = ["bairro", "custo_por_dormitorio", "indice"]
-    tabela = (resumo.sort_values(["indice", "imoveis"], ascending=False)
-              .assign(custo_por_dormitorio=lambda t: t["custo_por_dormitorio"].round(),
-                      distancia_km=lambda t: t["distancia_km"].round(1))[colunas])
-    st.dataframe(tabela, hide_index=True, height=altura, column_config={
-        "bairro": st.column_config.TextColumn("Bairro", width="medium"),
-        "imoveis": st.column_config.NumberColumn("Imóveis", format="%d", width="small"),
-        "custo_por_dormitorio": st.column_config.NumberColumn("R$/dorm.", format="localized", width="small",
-                                                              help="Custo por dormitório (mediana)"),
-        "distancia_km": st.column_config.NumberColumn("km", format="localized", width="small",
-                                                      help="Distância até o campus escolhido"),
-        "indice": st.column_config.ProgressColumn("Índice", min_value=0, max_value=100, format="%d",
-                                                  width="small"),
-    })
-
-
-def cartao_imovel(imovel: pd.Series, distancia_ate: str) -> None:
-    with st.container(border=True):
-        if isinstance(imovel["foto_url"], str) and imovel["foto_url"].startswith("https://"):
-            # Altura fixa com recorte (object-fit): fotos em pé ou deitadas não desalinham os cartões.
-            # O endereço vem do site, então é escapado antes de entrar no HTML.
-            st.markdown(f'<img src="{html.escape(imovel["foto_url"], quote=True)}" alt="" loading="lazy" '
-                        'style="width:100%;height:180px;object-fit:cover;border-radius:6px">',
-                        unsafe_allow_html=True)
-        selos = []
-        if imovel["novo"]:
-            selos.append(":violet-badge[:material/new_releases: Novo]")
-        if pd.notna(imovel["total_anterior"]):
-            selos.append(":green-badge[:material/trending_down: Baixou de preço]")
-        if selos:
-            st.markdown(" ".join(selos))
-        titulo = imovel["titulo"] if isinstance(imovel["titulo"], str) else f"{imovel['tipo']} em {imovel['bairro']}"
-        st.markdown(f"**{escapar(titulo)}**")
-        st.caption(f"{imovel['subtipo']} · {imovel['bairro']}")
-        # Com dois "R$" na mesma linha, o Markdown leria o trecho entre eles como fórmula: daí o escapar()
-        preco = f"{escapar(fmt.reais(imovel['total_mensal']))} /mês"
-        if pd.notna(imovel["total_anterior"]):
-            preco += f" :small[:gray[~~{escapar(fmt.reais(imovel['total_anterior']))}~~]]"  # o valor de antes, riscado
-        st.markdown(f"#### {preco}")
-
-        detalhes = [f"{fmt.reais(imovel['custo_por_dormitorio'])} por dormitório"]
-        if pd.notna(imovel["dormitorios"]):
-            detalhes.append(f"{int(imovel['dormitorios'])} dorm.")
-        if pd.notna(imovel["area_m2"]):
-            detalhes.append(fmt.metros_quadrados(imovel["area_m2"]))
-        st.markdown(" · ".join(detalhes))
-        st.markdown(f"{fmt.km(imovel['distancia_km'])} {distancia_ate} · "
-                    f":blue-badge[Índice {fmt.numero(imovel['indice'])}]")
-        st.link_button("Ver anúncio", imovel["url"], width="stretch", icon=":material/open_in_new:")
-
-
-def grade_de_cartoes(df: pd.DataFrame, distancia_ate: str, colunas: int = 3) -> None:
-    for inicio in range(0, len(df), colunas):
-        for coluna, (_, imovel) in zip(st.columns(colunas), df.iloc[inicio:inicio + colunas].iterrows()):
-            with coluna:
-                cartao_imovel(imovel, distancia_ate)
+def cartoes(df: pd.DataFrame, campus: str) -> None:
+    # Tudo numa linha só: no Markdown, uma linha em branco ou um recuo quebrariam o bloco de HTML
+    st.markdown(f'<div class="cartoes">{"".join(_cartao(imovel, campus) for _, imovel in df.iterrows())}</div>',
+                unsafe_allow_html=True)
 
 
 def tabela_imoveis(df: pd.DataFrame) -> None:
     colunas = {
         "titulo": st.column_config.TextColumn("Anúncio", width="large"),
         "bairro": st.column_config.TextColumn("Bairro"),
-        "subtipo": st.column_config.TextColumn("Tipo"),
-        "total_mensal": st.column_config.NumberColumn("Total/mês (R$)", format="localized"),
+        "custo_por_dormitorio": st.column_config.NumberColumn("Por pessoa (R$)", format="localized"),
+        "total_mensal": st.column_config.NumberColumn("Total por mês (R$)", format="localized"),
         "total_anterior": st.column_config.NumberColumn(
             "Antes da queda (R$)", format="localized",
             help=f"Total por mês antes da queda de preço, se ela aconteceu nos últimos {DIAS_NOVIDADE} dias"),
         "novo": st.column_config.CheckboxColumn("Novo", help=f"Apareceu no site nos últimos {DIAS_NOVIDADE} dias"),
-        "custo_por_dormitorio": st.column_config.NumberColumn("Por dormitório (R$)", format="localized"),
-        "dormitorios": st.column_config.NumberColumn("Dorm.", format="%d"),
+        "dormitorios": st.column_config.NumberColumn("Quartos", format="%d"),
         "area_m2": st.column_config.NumberColumn("Área (m²)", format="%d"),
-        "preco_m2": st.column_config.NumberColumn("R$/m²", format="localized"),
         "distancia_km": st.column_config.NumberColumn("Distância (km)", format="localized"),
-        "indice": st.column_config.ProgressColumn("Índice", min_value=0, max_value=100, format="%d"),
+        "subtipo": st.column_config.TextColumn("Tipo"),
         "aluguel": st.column_config.NumberColumn("Aluguel (R$)", format="localized"),
         "condominio": st.column_config.NumberColumn("Condomínio (R$)", format="localized"),
         "iptu": st.column_config.NumberColumn("IPTU (R$)", format="localized"),
         "url": st.column_config.LinkColumn("Link", display_text="Ver anúncio"),
     }
-    tabela = df[list(colunas)].assign(
-        custo_por_dormitorio=lambda t: t["custo_por_dormitorio"].round(),
-        preco_m2=lambda t: t["preco_m2"].round(1),
-        distancia_km=lambda t: t["distancia_km"].round(1))
+    tabela = df[list(colunas)].assign(custo_por_dormitorio=lambda t: t["custo_por_dormitorio"].round(),
+                                      distancia_km=lambda t: t["distancia_km"].round(1))
     st.dataframe(tabela, hide_index=True, column_config=colunas)

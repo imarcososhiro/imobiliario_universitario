@@ -1,30 +1,26 @@
-# Esse script setta as configurações de arte da página (fontes, cores, etc.).
-
-# Eu admito que estava sem criatividade pra isso, então por enquanto vou deixar
-# esse aqui que eu peguei de um template que o streamlit oferece na sua galeria.
+# Tema do dashboard: claro e leve, que combina com as fotos dos imóveis e com o mapa.
+# A cor principal (índigo) aparece nos botões, filtros e no campus escolhido no mapa.
+# Os cartões e a lista de bairros são HTML próprio, com o estilo em app/interface.py.
 
 [theme]
-base = "dark"
-
-# General color setup
-textColor = "#e2e8f0"
-primaryColor = "#615fff"
-backgroundColor = "#1d293d"
-secondaryBackgroundColor = "#0f172b"
-
-# Widgets
+base = "light"
+primaryColor = "#4f46e5"
+backgroundColor = "#f7f7fb"
+secondaryBackgroundColor = "#eef0f6"
+textColor = "#171a26"
+linkColor = "#4f46e5"
+borderColor = "#e3e6ef"
 showWidgetBorder = true
-borderColor = "#314158"
+baseRadius = "large"
+buttonRadius = "full"
+dataframeHeaderBackgroundColor = "#eef0f6"
 
-# Dataframes
-dataframeHeaderBackgroundColor = "#1d293d"
+# Texto em Plus Jakarta Sans e títulos em Bricolage Grotesque: duas fontes modernas e amigáveis
+font = "'Plus Jakarta Sans':https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..800&display=swap"
+headingFont = "'Bricolage Grotesque':https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap"
+headingFontWeights = [800, 700, 700, 600, 600, 600]
+headingFontSizes = ["2.6rem", "1.6rem", "1.2rem"]
+baseFontSize = 15
 
-# Base text
-font = "'Space Grotesk':https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap"
-baseFontWeight = 300
-baseFontSize = 14
-
-# Heading text
-headingFont = "Space Grotesk"
-headingFontWeights = [300, 400, 400, 300, 300, 300]
-headingFontSizes = ["2.5rem", "1.5rem", "1rem"]
+[client]
+toolbarMode = "minimal"  # esconde o menu de desenvolvedor para quem só quer achar um apê
