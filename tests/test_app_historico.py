@@ -15,16 +15,22 @@ from scraper.modelo import Imovel
 HOJE = date(2026, 10, 20)
 
 
-def imovel(codigo, total, dia, bairro="Centro", **outros):
-    return Imovel(codigo=codigo, fonte="cardinali", url=f"https://www.cardinali.com.br/alugar/{codigo}",
+def separar(chave):
+    """Nos dicionários de dias, a chave é o código (Cardinali) ou (fonte, código)."""
+    return chave if isinstance(chave, tuple) else ("cardinali", chave)
+
+
+def imovel(codigo, total, dia, bairro="Centro", fonte="cardinali", **outros):
+    return Imovel(codigo=codigo, fonte=fonte, url=f"https://www.cardinali.com.br/alugar/{codigo}",
                   tipo="Apartamento", subtipo="Padrão", bairro=bairro, total_mensal=total, dormitorios=2,
                   coletado_em=dia.isoformat(), **outros)
 
 
 def salvar_dias(pasta, dias, tmp_path):
-    """dias: {data: {codigo: total}} -> um snapshot Parquet por dia."""
+    """dias: {data: {codigo ou (fonte, codigo): total}} -> um snapshot Parquet por dia."""
     for dia, totais in dias.items():
-        salvar_csv([imovel(codigo, total, dia) for codigo, total in totais.items()], tmp_path / "coleta.csv")
+        salvar_csv([imovel(separar(chave)[1], total, dia, fonte=separar(chave)[0]) for chave, total in totais.items()],
+                   tmp_path / "coleta.csv")
         salvar_snapshot(tmp_path / "coleta.csv", pasta)
     return pasta
 
@@ -48,8 +54,9 @@ DIAS = {
 
 def imoveis_de_hoje(totais=DIAS[HOJE]):
     """Os imóveis do dia como o dashboard os recebe de carregar_imoveis (só as colunas usadas aqui)."""
-    return pd.DataFrame({"fonte": "cardinali", "codigo": list(totais), "total_mensal": list(totais.values()),
-                         "coletado_em": HOJE}, index=[10 * codigo for codigo in totais])
+    fontes, codigos = zip(*map(separar, totais))
+    return pd.DataFrame({"fonte": fontes, "codigo": codigos, "total_mensal": list(totais.values()),
+                         "coletado_em": HOJE}, index=[10 * numero for numero in range(len(totais))])
 
 
 @pytest.fixture
@@ -132,3 +139,26 @@ def test_marcar_novidades_sem_historico():
     assert not marcados["novo"].any() and not marcados["novidade"].any()
     assert marcados["total_anterior"].isna().all()
 
+
+def novos_por_fonte(df):
+    return sorted(map(tuple, df.loc[df["novo"], ["fonte", "codigo"]].values.tolist()))
+
+
+def test_imobiliaria_que_estreia_nao_tem_imoveis_novos(tmp_path):
+    """No dia em que uma imobiliária entra na coleta, todos os imóveis dela aparecem "pela primeira
+    vez" sem serem novos. Depois da estreia, um imóvel que aparece nela é novo de verdade."""
+    roca_na_estreia = {("roca", 100): 700, ("roca", 101): 800}
+    dias = {**DIAS, date(2026, 10, 18): {**DIAS[date(2026, 10, 18)], **roca_na_estreia},
+            HOJE: {**DIAS[HOJE], **roca_na_estreia, ("roca", 102): 900}}
+    historico = ler_historico(salvar_dias(tmp_path / "snapshots", dias, tmp_path))
+    assert historico.estreias["roca"] == pd.Timestamp(2026, 10, 18)
+    assert novos_por_fonte(marcar_novidades(imoveis_de_hoje(dias[HOJE]), historico)) == [
+        ("cardinali", 4), ("cardinali", 5), ("roca", 102)]
+
+
+def test_imobiliaria_que_o_historico_ainda_nao_tem(tmp_path):
+    """O histórico em cache é de ontem e a Roca estreou hoje no CSV: nenhum imóvel dela é novo."""
+    dias_ate_ontem = {dia: totais for dia, totais in DIAS.items() if dia < HOJE}
+    historico = ler_historico(salvar_dias(tmp_path / "snapshots", dias_ate_ontem, tmp_path))
+    hoje = {**DIAS[HOJE], ("roca", 100): 700, ("roca", 5): 650}  # o mesmo código 5 numa outra imobiliária
+    assert novos_por_fonte(marcar_novidades(imoveis_de_hoje(hoje), historico)) == [("cardinali", 4), ("cardinali", 5)]
