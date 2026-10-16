@@ -3,8 +3,7 @@ import csv
 
 import pytest
 
-from app.bairros import (UFSCAR, USP, buscar_contorno, buscar_coords, distancia_km, na_regiao_universitaria,
-                         padronizar_bairro)
+from app.bairros import UFSCAR, USP, buscar_contorno, buscar_coords, distancia_km, padronizar_bairro
 from app.dados import Filtros, aplicar_filtros, carregar_imoveis
 from scraper.modelo import COLUNAS
 
@@ -26,14 +25,6 @@ def test_contorno_e_coordenadas():
 
 def test_distancia_entre_usp_e_ufscar():
     assert distancia_km(USP, UFSCAR) == pytest.approx(3.2, abs=0.1)
-
-
-def test_regiao_universitaria():
-    assert na_regiao_universitaria("Centro")
-    assert na_regiao_universitaria("Parque Arnold Schmidt")
-    assert na_regiao_universitaria("Vila Prado")                  # a borda chega a ~2,2 km da USP
-    assert not na_regiao_universitaria("Swiss Park Residencial")  # a borda fica a ~2,7 km
-    assert not na_regiao_universitaria("Bairro Que Não Existe")
 
 
 @pytest.fixture
@@ -62,13 +53,11 @@ def csv_de_exemplo(tmp_path):
 
 def test_carregar_imoveis(csv_de_exemplo):
     df = carregar_imoveis(csv_de_exemplo).set_index("codigo")
-    # 4: sem total; 5: acima de R$ 8000; 7: só comercial
-    assert sorted(df.index) == [1, 2, 3, 6, 8]
+    # 4: sem total; 5: acima de R$ 8000; 7: só comercial; 8: reservado
+    assert sorted(df.index) == [1, 2, 3, 6]
     assert df.loc[2, "dormitorios"] == 1                      # kitnet sem dormitório informado
     assert df.loc[2, "bairro"] == df.loc[6, "bairro"] == "Jardim Paraíso"
     assert df.loc[3, "bairro"] == "Swiss Park Residencial"
-    assert df["regiao_universitaria"].to_dict() == {1: True, 2: True, 3: False, 6: True, 8: True}
-    assert df["reservado"].to_dict() == {1: False, 2: False, 3: False, 6: False, 8: True}
     assert df.loc[1, "custo_por_dormitorio"] == 1000
 
 
@@ -78,10 +67,22 @@ def test_aplicar_filtros(csv_de_exemplo):
     def codigos(**filtros):
         return sorted(aplicar_filtros(df, Filtros(**filtros))["codigo"])
 
-    assert codigos() == [1, 2, 6]                                   # região universitária, sem reservados
-    assert codigos(so_regiao_universitaria=False) == [1, 2, 3, 6]
-    assert codigos(incluir_reservados=True) == [1, 2, 6, 8]
-    assert codigos(so_regiao_universitaria=False, tipo="Casa") == [3]
+    assert codigos() == [1, 2, 3, 6]
+    # Distâncias até a USP: Jardim Paraíso ~0,6 km, Centro ~1,3 km, Swiss Park ~2,9 km
+    assert codigos(distancia_max_km=1) == [2, 6]
+    assert codigos(distancia_max_km=2) == [1, 2, 6]
+    # A UFSCar fica do outro lado da cidade: o Swiss Park está a ~5,9 km dela
+    assert codigos(distancia_max_km=5) == [1, 2, 3, 6]
+    assert codigos(campus="UFSCar", distancia_max_km=5) == [1, 2, 6]
+    assert codigos(tipo="Casa") == [3]
     assert codigos(dormitorios=[1]) == [2]
     assert codigos(dormitorios=[4]) == [6]                          # "4+" inclui 5 dormitórios
-    assert codigos(faixa_total=(1000, 1900)) == [2, 6]
+    # Por pessoa: 1 -> R$ 1000, 2 -> R$ 1060 (kitnet), 3 -> R$ 750, 6 -> R$ 360 (5 quartos)
+    assert codigos(preco_max_por_pessoa=800) == [3, 6]
+
+
+def test_distancia_vem_do_campus_escolhido(csv_de_exemplo):
+    df = carregar_imoveis(csv_de_exemplo)
+    usp = aplicar_filtros(df, Filtros(campus="USP")).set_index("codigo")["distancia_km"]
+    ufscar = aplicar_filtros(df, Filtros(campus="UFSCar")).set_index("codigo")["distancia_km"]
+    assert usp[2] < 1 < 3 < ufscar[2]  # o Jardim Paraíso fica do lado da USP

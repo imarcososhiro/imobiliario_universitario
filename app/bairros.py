@@ -8,11 +8,6 @@ from geo.lugares import RODOVIARIA, UFSCAR, USP  # noqa: F401 (usados pelo mapa)
 
 CAMINHO_GEOJSON = nomes.PASTA_GEO / "bairros.geojson"
 
-# Região universitária: bairros que chegam a até 2,2 km da USP ou da UFSCar. Medir pela
-# borda (e não pelo meio do bairro) evita que um bairro grande fique de fora por pouco;
-# o raio reproduz a lista de bairros que o projeto usava antes do mapa com contornos
-RAIO_REGIAO_KM = 2.2
-
 aliases = nomes.carregar_aliases()
 with open(CAMINHO_GEOJSON, encoding="utf-8") as arquivo:
     contornos = {nomes.normalizar(feature["properties"]["bairro"]): feature for feature in json.load(arquivo)["features"]}
@@ -49,9 +44,3 @@ def distancia_km(ponto_a: tuple[float, float], ponto_b: tuple[float, float]) -> 
     lat_a, lon_a, lat_b, lon_b = map(math.radians, (*ponto_a, *ponto_b))
     h = math.sin((lat_b - lat_a) / 2) ** 2 + math.cos(lat_a) * math.cos(lat_b) * math.sin((lon_b - lon_a) / 2) ** 2
     return 6371 * 2 * math.asin(math.sqrt(h))
-
-
-def na_regiao_universitaria(bairro: str) -> bool:
-    """A distância da borda até o campus é calculada pelo gerador do mapa (python -m geo.gerar)."""
-    contorno = buscar_contorno(bairro)
-    return contorno is not None and contorno["properties"]["distancia_campus_km"] <= RAIO_REGIAO_KM
