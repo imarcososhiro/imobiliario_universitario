@@ -121,6 +121,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 │    └── 📄 snapshot.py  
 ├── 📂 scraper  
 │    ├── 📄 __main__.py  
+│    ├── 📄 alertas.py  
 │    ├── 📄 cardinali.py  
 │    ├── 📄 coleta.py  
 │    ├── 📄 conversao.py  
@@ -135,7 +136,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 `requirements.txt` / `requirements-scraper.txt` / `requirements-dev.txt` - *Dependências do dashboard (usadas pelo Streamlit Cloud), do scraper (usadas pelo GitHub Actions) e de desenvolvimento (testes), separadas para cada ambiente instalar só o que precisa*
 
-`.github/workflows/main.yml` - *Agendamento diário do scraper no GitHub Actions e commit do CSV atualizado*
+`.github/workflows/main.yml` - *Agendamento diário do scraper no GitHub Actions, commit do CSV atualizado e os avisos quando algo quebra (veja [Operação](#operação))*
 
 `.github/workflows/testes.yml` - *Roda os testes automaticamente em cada pull request*
 
@@ -171,6 +172,8 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 `scraper/download.py` - *Baixa as páginas, tentando de novo quando o site falha temporariamente*  
 
 `scraper/modelo.py` - *Formato comum dos imóveis, igual para qualquer imobiliária*  
+
+`scraper/alertas.py` - *Abre uma issue quando a coleta diária quebra e fecha quando ela volta (só usa a biblioteca padrão do Python)*  
 
 `historico/snapshot.py` - *Converte a coleta do dia num arquivo Parquet com esquema fixo (`snapshots/AAAA/AAAA-MM-DD.parquet` no branch `data`)*  
 
@@ -253,6 +256,19 @@ O gerador também guarda em cada bairro a distância da borda até o campus mais
 - *O contorno está ruim ou não existe*: desenhe o bairro no [geojson.io](https://geojson.io), dê a ele a propriedade `"bairro": "Nome do Bairro"` e cole a feature em `dados/geo/desenhos_manuais.geojson`.
 
 No fim, o gerador lista os bairros com imóveis que ficaram sem contorno: os imóveis deles continuam na tabela, só não aparecem no mapa.
+
+## **Operação**
+
+A coleta roda sozinha todo dia às 18h (horário de Brasília) no GitHub Actions. Para saber se ela está saudável sem precisar abrir o Actions:
+
+- **Resumo da execução**: a página de cada execução mostra uma tabela com os imóveis anunciados e coletados, o que mudou desde a última coleta (novos, saíram, mudaram de preço), as falhas, as novas tentativas de download e a duração. Muitas novas tentativas, mesmo sem falhas, indicam que o site ou a conexão andam instáveis.
+- **Se algo quebrar**:
+  - o CSV anterior é mantido, então o dashboard continua mostrando a última coleta que deu certo;
+  - uma **issue com o rótulo `coleta-quebrada`** é aberta (ou ganha um comentário, se já houver uma aberta), com o link da execução, a etapa que falhou e o fim do log. O GitHub avisa por e-mail quem acompanha o repositório;
+  - o HTML das páginas que o scraper não conseguiu ler fica 14 dias no artefato **`paginas-com-falha`** da execução, junto de um `falhas.csv` (URL, motivo e arquivo de cada falha).
+- **Quando voltar a funcionar**, a issue ganha um comentário e é fechada sozinha.
+
+**Como investigar uma falha:** baixe o artefato `paginas-com-falha`, abra o HTML e veja o que mudou no site. Para transformar o caso em teste, salve a página como fixture (`python -m tests.salvar_fixture <url> <nome>`), escreva um teste que falha e ajuste `scraper/cardinali.py`. Para rodar a coleta na hora: aba Actions → *Atualizacao de banco de dados imobiliarios* → *Run workflow*. Localmente, `python -m scraper --falhas falhas` guarda o HTML das falhas na pasta `falhas/`.
 
 ## **Tecnologias Utilizadas**
   
