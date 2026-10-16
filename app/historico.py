@@ -42,6 +42,7 @@ class Historico:
     primeiro_dia: pd.Timestamp
     ultimo_dia: pd.Timestamp
     por_imovel: pd.DataFrame  # quando cada imóvel apareceu, último total e última mudança de preço
+    estreias: dict[str, pd.Timestamp]  # o primeiro dia de cada imobiliária no histórico
 
 
 def extrair_snapshots(arquivo: BinaryIO, pasta: Path) -> int:
@@ -77,7 +78,8 @@ def ler_historico(pasta: Path) -> Historico:
     ultima_mudanca = mudancas.groupby(CHAVE).tail(1).rename(columns={"coletado_em": "data_mudanca"})
     por_imovel = resumo[CHAVE + ["primeira_vez", "ultimo_total"]].merge(
         ultima_mudanca[CHAVE + ["data_mudanca", "total_anterior", "total_novo"]], on=CHAVE, how="left")
-    return Historico(pd.Timestamp(datas[0]), pd.Timestamp(datas[-1]), por_imovel)
+    estreias = resumo.groupby("fonte")["primeira_vez"].min().to_dict()
+    return Historico(pd.Timestamp(datas[0]), pd.Timestamp(datas[-1]), por_imovel, estreias)
 
 
 @st.cache_data(ttl=timedelta(hours=HORAS_EM_CACHE), show_spinner="Baixando o histórico de preços...")
@@ -122,19 +124,23 @@ def marcar_novidades(imoveis: pd.DataFrame, historico: Historico | None) -> pd.D
                                                    validate="one_to_one")
     info.index = imoveis.index
     info["total_mensal"] = info["total_mensal"].round(2)  # o histórico guarda as mudanças com 2 casas
+    estreia = pd.to_datetime(info["fonte"].map(historico.estreias))  # vazio: imobiliária que o histórico não tem
 
     if historico.ultimo_dia < hoje:
-        # O histórico em cache ainda não tem a coleta de hoje: o CSV entra como a observação mais recente
-        info["primeira_vez"] = info["primeira_vez"].fillna(historico.ultimo_dia + timedelta(days=1))
+        # O histórico em cache ainda não tem a coleta de hoje: o CSV entra como a observação mais recente.
+        # Só para imobiliárias que o histórico já conhece: numa que estreia hoje, ninguém é novo
+        conhecida = estreia.notna()
+        info.loc[conhecida, "primeira_vez"] = info.loc[conhecida, "primeira_vez"].fillna(
+            historico.ultimo_dia + timedelta(days=1))
         mudou = info["ultimo_total"].notna() & (info["total_mensal"] != info["ultimo_total"].round(2))
         info.loc[mudou, "data_mudanca"] = hoje
         info.loc[mudou, "total_anterior"] = info.loc[mudou, "ultimo_total"]
         info.loc[mudou, "total_novo"] = info.loc[mudou, "total_mensal"]
 
-    # No primeiro dia do histórico e no dia em que a coleta passou a cobrir a cidade toda, centenas
-    # de imóveis aparecem "pela primeira vez" sem serem novos de verdade: nesses dias, ninguém é novo
-    sem_comparacao = [historico.primeiro_dia, pd.Timestamp(consultas.INICIO_CIDADE_TODA)]
-    novo = (info["primeira_vez"] >= inicio) & ~info["primeira_vez"].isin(sem_comparacao)
+    # No primeiro dia de cada imobiliária no histórico e no dia em que a coleta passou a cobrir a
+    # cidade toda, centenas de imóveis aparecem "pela primeira vez" sem serem novos de verdade
+    novo = ((info["primeira_vez"] >= inicio) & (info["primeira_vez"] != estreia)
+            & (info["primeira_vez"] != pd.Timestamp(consultas.INICIO_CIDADE_TODA)))
     # Só vale se o preço de hoje ainda é o da queda (o imóvel pode ter subido de novo depois)
     baixou = ((info["data_mudanca"] >= inicio) & (info["total_novo"] < info["total_anterior"])
               & (info["total_mensal"] == info["total_novo"]))
