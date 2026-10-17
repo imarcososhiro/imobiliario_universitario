@@ -4,7 +4,7 @@ import csv
 import pandas as pd
 import pytest
 
-from app.bairros import UFSCAR, USP, buscar_contorno, buscar_coords, distancia_km, padronizar_bairro
+from app.bairros import RODOVIARIA, UFSCAR, USP, buscar_contorno, buscar_coords, distancia_km, padronizar_bairro
 from app.dados import Filtros, aplicar_filtros, carregar_imoveis, marcar_duplicatas
 from scraper.modelo import COLUNAS
 
@@ -26,6 +26,7 @@ def test_contorno_e_coordenadas():
 
 def test_distancia_entre_usp_e_ufscar():
     assert distancia_km(USP, UFSCAR) == pytest.approx(3.2, abs=0.1)
+    assert distancia_km(USP, RODOVIARIA) == pytest.approx(0.8, abs=0.1)  # a rodoviária fica no centro
 
 
 @pytest.fixture
@@ -74,7 +75,7 @@ def test_aplicar_filtros(csv_de_exemplo):
     assert codigos(distancia_max_km=2) == [1, 2, 6]
     # A UFSCar fica do outro lado da cidade: o Swiss Park está a ~5,9 km dela
     assert codigos(distancia_max_km=5) == [1, 2, 3, 6]
-    assert codigos(campus="UFSCar", distancia_max_km=5) == [1, 2, 6]
+    assert codigos(perto_de="UFSCar", distancia_max_km=5) == [1, 2, 6]
     assert codigos(tipo="Casa") == [3]
     assert codigos(dormitorios=[1]) == [2]
     assert codigos(dormitorios=[4]) == [6]                          # "4+" inclui 5 dormitórios
@@ -82,11 +83,17 @@ def test_aplicar_filtros(csv_de_exemplo):
     assert codigos(preco_max_por_quarto=800) == [3, 6]
 
 
-def test_distancia_vem_do_campus_escolhido(csv_de_exemplo):
+def test_distancia_vem_do_lugar_escolhido(csv_de_exemplo):
     df = carregar_imoveis(csv_de_exemplo)
-    usp = aplicar_filtros(df, Filtros(campus="USP")).set_index("codigo")["distancia_km"]
-    ufscar = aplicar_filtros(df, Filtros(campus="UFSCar")).set_index("codigo")["distancia_km"]
+
+    def distancias(lugar):
+        return aplicar_filtros(df, Filtros(perto_de=lugar)).set_index("codigo")["distancia_km"]
+
+    usp, ufscar, rodoviaria = distancias("USP"), distancias("UFSCar"), distancias("Rodoviária")
     assert usp[2] < 1 < 3 < ufscar[2]  # o Jardim Paraíso fica do lado da USP
+    # O Centro fica mais perto da rodoviária que da USP; o Jardim Paraíso, o contrário
+    assert rodoviaria[1] < usp[1] < 3 < ufscar[1]
+    assert usp[2] < rodoviaria[2]
 
 
 def test_filtro_de_imobiliaria(csv_de_exemplo):

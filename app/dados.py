@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from app.bairros import padronizar_bairro
-from app.metricas import adicionar_metricas, escolher_campus
+from app.metricas import adicionar_metricas, medir_distancia
 
 CAMINHO_CSV = Path(__file__).resolve().parent.parent / "dados" / "imoveis.csv"
 VALOR_MAXIMO = 8000  # Teto do projeto para o valor total (aluguel + condomínio + IPTU)
@@ -63,7 +63,7 @@ def marcar_duplicatas(df: pd.DataFrame) -> pd.DataFrame:
 
 @dataclass
 class Filtros:
-    campus: str = "USP"                                   # de onde medir a distância: "USP" ou "UFSCar"
+    perto_de: str = "USP"                                 # de onde medir a distância: "USP", "UFSCar" ou "Rodoviária"
     distancia_max_km: float | None = None                 # None = qualquer distância
     tipo: str | None = None                               # "Apartamento", "Casa" ou None (tanto faz)
     dormitorios: list[int] = field(default_factory=list)  # vazio = todos; 4 vale "4 ou mais"
@@ -72,8 +72,8 @@ class Filtros:
 
 
 def aplicar_filtros(df: pd.DataFrame, filtros: Filtros) -> pd.DataFrame:
-    """Os imóveis que passam pelos filtros, com a distância até o campus escolhido em `distancia_km`."""
-    df = escolher_campus(df, filtros.campus)
+    """Os imóveis que passam pelos filtros, com a distância até o lugar escolhido em `distancia_km`."""
+    df = medir_distancia(df, filtros.perto_de)
     selecao = pd.Series(True, index=df.index)
     if filtros.distancia_max_km is not None:
         selecao &= df["distancia_km"] <= filtros.distancia_max_km
