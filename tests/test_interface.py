@@ -19,6 +19,21 @@ def test_cartao_mostra_a_imobiliaria_e_escapa_o_que_vem_do_site():
     assert "selo" not in cartao
 
 
+def test_cartao_mostra_a_conta_do_preco_por_quarto():
+    cartao = _cartao(imovel(), "USP")
+    assert "R$ 900 <small>/quarto</small>" in cartao
+    assert "R$ 1.800 por mês ÷ 2 quartos" in cartao
+    kitnet = _cartao(imovel(custo_por_dormitorio=1100.0, total_mensal=1100.0, dormitorios=1.0), "USP")
+    assert "1 quarto: é o total do mês" in kitnet
+    # Sem nº de quartos não dá para dividir: mostra só o total
+    sem_quartos = _cartao(imovel(custo_por_dormitorio=float("nan"), dormitorios=float("nan")), "USP")
+    assert "R$ 1.800 <small>/mês</small>" in sem_quartos and "/quarto" not in sem_quartos
+
+
+def test_cartao_com_a_distancia_ate_a_rodoviaria():
+    assert "1,2 km da rodoviária · ~20 min a pé" in _cartao(imovel(), "Rodoviária")
+
+
 def test_cartao_com_possivel_duplicata():
     cartao = _cartao(imovel(fonte="cardinali", duplicata_de="roca"), "USP")
     assert "Também na Roca?" in cartao and 'class="selo duplicata"' in cartao
