@@ -13,7 +13,7 @@ TIPOS = {"Tanto faz": None, "Apartamento": "Apartamento", "Casa": "Casa"}
 # Distância do bairro até o campus, em linha reta (km); None = qualquer distância
 DISTANCIAS = {"A pé (até 1,5 km)": 1.5, "Até 3 km": 3.0, "Até 5 km": 5.0, "Qualquer distância": None}
 SEM_LIMITE = "Sem limite"
-PRECOS_POR_PESSOA = list(range(500, 3001, 100)) + [SEM_LIMITE]
+PRECOS_POR_QUARTO = list(range(500, 3001, 100)) + [SEM_LIMITE]
 
 # Estilo dos cartões e da lista de bairros. Fica aqui (e não no config.toml) porque o tema do
 # Streamlit não tem como desenhar esses blocos, que são HTML próprio.
@@ -103,23 +103,24 @@ def filtros() -> Filtros:
         dormitorios = quartos.pills(
             "Quantos quartos?", list(range(1, DORMITORIOS_OU_MAIS + 1)), selection_mode="multi", key="quartos",
             format_func=lambda n: f"{n}+" if n == DORMITORIOS_OU_MAIS else str(n),
-            help="Vai dividir com amigos? Cada quarto conta como uma pessoa no preço por pessoa")
+            help="Vai dividir com amigos? Conte um quarto para cada pessoa")
         escolha_tipo = tipo.radio("Tipo", list(TIPOS), horizontal=True, key="tipo")
         imobiliarias = imobiliaria.pills("Imobiliária", list(IMOBILIARIAS), selection_mode="multi",
                                          format_func=IMOBILIARIAS.get, key="imobiliarias",
                                          help="Nenhuma marcada: mostra os imóveis de todas")
         preco, distancia = st.columns(2)
         preco_max = preco.select_slider(
-            "Até quanto por pessoa?", PRECOS_POR_PESSOA, value=SEM_LIMITE, key="preco",
+            "Até quanto por quarto?", PRECOS_POR_QUARTO, value=SEM_LIMITE, key="preco",
             format_func=lambda valor: valor if valor == SEM_LIMITE else fmt.reais(valor),
-            help="Aluguel + condomínio + IPTU, dividido pelo número de quartos")
+            help="Aluguel + condomínio + IPTU, dividido pelo número de quartos. Com um quarto para "
+                 "cada pessoa, é quanto cada uma paga")
         distancia_max = distancia.select_slider("Quão perto do campus?", list(DISTANCIAS), value="Até 3 km",
                                                 key="distancia",
                                                 help="Em linha reta, do bairro até o campus (o site não "
                                                      "informa o endereço dos imóveis)")
     return Filtros(campus=escolha_campus, distancia_max_km=DISTANCIAS[distancia_max], tipo=TIPOS[escolha_tipo],
                    dormitorios=list(dormitorios or []),
-                   preco_max_por_pessoa=None if preco_max == SEM_LIMITE else float(preco_max),
+                   preco_max_por_quarto=None if preco_max == SEM_LIMITE else float(preco_max),
                    imobiliarias=list(imobiliarias or []))
 
 
@@ -130,7 +131,7 @@ def numeros(df: pd.DataFrame, historico_carregado: bool) -> None:
     """
     blocos = [
         (fmt.numero(len(df)), "imóveis pra você", f"em {df['bairro'].nunique()} bairros"),
-        (fmt.reais(df["custo_por_dormitorio"].median()), "preço típico por pessoa", "metade custa menos que isso"),
+        (fmt.reais(df["custo_por_dormitorio"].median()), "preço típico por quarto", "metade custa menos que isso"),
     ]
     if historico_carregado:
         blocos += [
@@ -148,11 +149,11 @@ def numeros(df: pd.DataFrame, historico_carregado: bool) -> None:
 
 def legenda_do_mapa(itens: list[tuple[str, str]]) -> None:
     faixas = "".join(f'<span><i style="background:{cor}"></i>{texto}</span>' for cor, texto in itens)
-    st.html(f'<div class="legenda"><span><b>Preço típico por pessoa:</b></span>{faixas}</div>')
+    st.html(f'<div class="legenda"><span><b>Preço típico por quarto:</b></span>{faixas}</div>')
 
 
 def bairros_em_conta(resumo: pd.DataFrame, campus: str, quantidade: int = 6) -> None:
-    """Os bairros com o menor preço típico por pessoa (entre os que têm imóveis suficientes)."""
+    """Os bairros com o menor preço típico por quarto (entre os que têm imóveis suficientes)."""
     candidatos = (resumo[resumo["imoveis"] >= MINIMO_IMOVEIS_BAIRRO].dropna(subset=["custo_por_dormitorio"])
                   .sort_values(["custo_por_dormitorio", "imoveis"], ascending=[True, False]).head(quantidade))
     if candidatos.empty:
@@ -162,7 +163,7 @@ def bairros_em_conta(resumo: pd.DataFrame, campus: str, quantidade: int = 6) -> 
         f'<div class="bairro-linha"><span class="posicao">{posicao}</span>'
         f'<div class="nome">{html.escape(linha["bairro"])}<small>{fmt.numero(linha["imoveis"])} imóveis · '
         f'{fmt.minutos_a_pe(linha["distancia_km"])} da {campus}</small></div>'
-        f'<span class="valor">{fmt.reais(linha["custo_por_dormitorio"])}<small>/pessoa</small></span></div>'
+        f'<span class="valor">{fmt.reais(linha["custo_por_dormitorio"])}<small>/quarto</small></span></div>'
         for posicao, (_, linha) in enumerate(candidatos.iterrows(), start=1))
     st.html(f'<div class="bairros">{linhas}</div>')
 
@@ -187,8 +188,13 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
         selos = f'<div class="selos">{selos}</div>'
 
     if pd.notna(imovel["custo_por_dormitorio"]):
-        preco = f'{fmt.reais(imovel["custo_por_dormitorio"])} <small>/pessoa</small>'
-        total = f'{fmt.reais(imovel["total_mensal"])} por mês no total'
+        preco = f'{fmt.reais(imovel["custo_por_dormitorio"])} <small>/quarto</small>'
+        # A conta à vista: quem vai morar sozinho ou dividir o quarto refaz do seu jeito
+        quartos = int(imovel["dormitorios"])
+        if quartos > 1:
+            total = f'{fmt.reais(imovel["total_mensal"])} por mês ÷ {quartos} quartos'
+        else:
+            total = "1 quarto: é o total do mês"
     else:  # sem nº de quartos não dá para dividir: mostra só o total
         preco, total = f'{fmt.reais(imovel["total_mensal"])} <small>/mês</small>', "total por mês"
     if pd.notna(imovel["total_anterior"]):
@@ -226,7 +232,7 @@ def tabela_imoveis(df: pd.DataFrame) -> None:
         "titulo": st.column_config.TextColumn("Anúncio", width="large"),
         "imobiliaria": st.column_config.TextColumn("Imobiliária"),
         "bairro": st.column_config.TextColumn("Bairro"),
-        "custo_por_dormitorio": st.column_config.NumberColumn("Por pessoa (R$)", format="localized"),
+        "custo_por_dormitorio": st.column_config.NumberColumn("Por quarto (R$)", format="localized"),
         "total_mensal": st.column_config.NumberColumn("Total por mês (R$)", format="localized"),
         "total_anterior": st.column_config.NumberColumn(
             "Antes da queda (R$)", format="localized",

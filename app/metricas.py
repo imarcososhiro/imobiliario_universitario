@@ -12,9 +12,10 @@ MINIMO_IMOVEIS_BAIRRO = 3  # com menos imóveis que isso, o preço típico de um
 
 
 def adicionar_metricas(df: pd.DataFrame) -> pd.DataFrame:
-    """Acrescenta o preço por pessoa, a área e a distância do bairro a cada campus."""
+    """Acrescenta o preço por quarto, a área e a distância do bairro a cada campus."""
     df = df.copy()
-    # Preço por pessoa: o total dividido pelos quartos, como numa república em que cada um tem o seu
+    # Preço por quarto: o total dividido pelos quartos. Numa república em que cada um tem o seu
+    # quarto, é quanto cada pessoa paga
     df["custo_por_dormitorio"] = df["total_mensal"] / df["dormitorios"].where(df["dormitorios"] >= 1)
 
     # Casas costumam vir só com área construída; apartamentos, com área útil

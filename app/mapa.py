@@ -1,4 +1,4 @@
-"""Mapa dos bairros: cada um pintado pelo preço típico por pessoa, com os campi e a rodoviária."""
+"""Mapa dos bairros: cada um pintado pelo preço típico por quarto, com os campi e a rodoviária."""
 import html
 from bisect import bisect_right
 
@@ -98,7 +98,7 @@ def legenda(limites: list[float]) -> list[tuple[str, str]]:
 def _texto_dica(linha: pd.Series, campus: str) -> str:
     return (
         f"<b>{html.escape(linha['bairro'])}</b><br>"
-        f"<span class='grande'>{fmt.reais(linha['custo_por_dormitorio'])}</span> por pessoa "
+        f"<span class='grande'>{fmt.reais(linha['custo_por_dormitorio'])}</span> por quarto "
         f"<span class='fraco'>(típico)</span><br>"
         f"{fmt.numero(linha['imoveis'])} {'imóvel' if linha['imoveis'] == 1 else 'imóveis'} · "
         f"a partir de {fmt.reais(linha['mais_barato'])}<br>"
