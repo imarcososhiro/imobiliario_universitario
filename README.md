@@ -53,7 +53,7 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   </a>
 </p> 
 
-**Observação:** A coleta cobre todos os aluguéis de casas e apartamentos de São Carlos nas imobiliárias Cardinali e Roca; o painel abre mostrando os imóveis a até 3 km da USP, e os filtros mudam o campus e a distância (até a cidade toda).  
+**Observação:** A coleta cobre todos os aluguéis de casas e apartamentos de São Carlos nas imobiliárias Cardinali e Roca; o painel abre mostrando os imóveis a até 3 km da USP, e os filtros mudam o lugar (USP, UFSCar ou rodoviária) e a distância (até a cidade toda).  
   
 ## **Funcionalidades**
 
@@ -61,15 +61,15 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
 
 ✔️ `Dados` - Extrai, diariamente e automaticamente, dados de imóveis para locação com perfil universitário: **apartamentos e casas em bairros próximos à USP e UFSCar, com valor total de até R$ 8000, pensando em desde quem procura morar em condomínios (sozinho ou grupo), até aqueles que procuram novas casas para suas Repúblicas.** 
   
-✔️ `Preço por pessoa` - Para cada imóvel: o **preço por pessoa** (quanto cada um pagaria dividindo o imóvel), a **distância** até a USP ou a UFSCar e o **tempo a pé** (veja [Métricas](#métricas)).  
+✔️ `Preço por quarto` - Para cada imóvel: o **preço por quarto** (o total ÷ nº de quartos: com um quarto para cada pessoa, é quanto cada uma paga, e o cartão mostra a conta), a **distância** até a USP, a UFSCar ou a rodoviária e o **tempo a pé** (veja [Métricas](#métricas)).  
 
-✔️ `Mapa` - Pinta a área de cada bairro pelo preço típico por pessoa, em 5 faixas, com os contornos vindos do OpenStreetMap, os campi e a rodoviária, e um círculo com a distância escolhida. Clicar num bairro mostra os imóveis dele. Ao lado, os bairros mais em conta.  
+✔️ `Mapa` - Pinta a área de cada bairro pelo preço típico por quarto, em 5 faixas, com os contornos vindos do OpenStreetMap, os campi e a rodoviária, e um círculo com a distância escolhida. Clicar num bairro mostra os imóveis dele (a página desce até a lista). Ao lado, os bairros mais em conta.  
   
 ✔️ `Imobiliárias` - Junta os anúncios da **Cardinali** e da **Roca** num lugar só, com o nome da imobiliária em cada cartão e o selo **"Também na Roca?"** quando outra imobiliária parece anunciar o mesmo imóvel (veja [Várias imobiliárias](#várias-imobiliárias)).  
 
-✔️ `Filtros` - No topo da página, como perguntas: onde você estuda, quantos quartos, tipo, imobiliária, até quanto por pessoa e quão perto do campus. Imóveis reservados ficam de fora.  
+✔️ `Filtros` - No topo da página, como perguntas: onde você estuda (e, na UFSCar, se quer morar perto da rodoviária, de onde saem os ônibus, ou do campus), quantos quartos, tipo, imobiliária, até quanto por quarto e quão perto. Imóveis reservados ficam de fora.  
 
-✔️ `Imóveis` - Cartões com foto, preço por pessoa, total, tempo a pé e quartos (o cartão inteiro leva ao anúncio), ordenáveis (mais barato por pessoa, mais perto, novidades primeiro...), e a tabela completa. No celular, os cartões ficam deitados para caberem mais na tela.  
+✔️ `Imóveis` - Cartões com foto, preço por quarto (com a conta), tempo a pé e quartos (o cartão leva ao anúncio, e o botão **Ver no mapa** mostra o bairro no mapa), ordenáveis (mais barato por quarto, mais perto, novidades primeiro...), busca de bairro e a tabela completa. No celular, os cartões ficam deitados para caberem mais na tela.  
 
 ✔️ `Novidades` - Selos **Novo** (o imóvel apareceu no site nos últimos 7 dias) e **Baixou de preço** (o total por mês caiu nos últimos 7 dias, com o valor antigo riscado) nos cartões, e no topo quantos imóveis novos e quedas de preço houve na semana (veja [Histórico no dashboard](#histórico-no-dashboard)).  
 
@@ -149,15 +149,15 @@ Este projeto propõe fazer uma raspagem de dados de apartamentos nas regiões pr
   
 `app/dados.py` - *Lê o CSV do scraper (só imóveis residenciais com total de até R$ 8000) e aplica os filtros*  
 
-`app/metricas.py` - *Calcula o preço por pessoa, a área, a distância a cada campus e o resumo por bairro*  
+`app/metricas.py` - *Calcula o preço por quarto, a área, a distância a cada lugar (campi e rodoviária) e o resumo por bairro*  
 
 `app/formatacao.py` - *Escreve os números no formato brasileiro (R$ 1.234, 2,3 km)*  
 
 `app/historico.py` - *Baixa o histórico do branch `data` e marca os imóveis novos e os que baixaram de preço*  
 
-`app/interface.py` - *Peças da página: filtros, números do resumo, bairros mais em conta, cartões e tabela (com o CSS dos cartões)*  
+`app/interface.py` - *Peças da página: filtros, números do resumo, bairros mais em conta, cartões (com o botão Ver no mapa), tabela e a rolagem da página (com o CSS dos cartões)*  
   
-`app/mapa.py` - *Cria o mapa: bairros pintados pelo preço típico por pessoa, etiquetas dos campi e da rodoviária e o círculo da distância*  
+`app/mapa.py` - *Cria o mapa: bairros pintados pelo preço típico por quarto, etiquetas dos campi e da rodoviária, o círculo da distância e o bairro em destaque do Ver no mapa*  
 
 `dados/geo/` - *Contornos dos bairros e as correções manuais (veja [Mapa dos bairros](#mapa-dos-bairros))*  
 
@@ -217,12 +217,14 @@ Poucas e simples, para ninguém precisar pensar demais:
 
 | Métrica | Como é calculada | Por que importa |
 |---|---|---|
-| Preço por pessoa | total por mês (aluguel + condomínio + IPTU) ÷ nº de quartos | É o que cada um pagaria dividindo o imóvel: compara de forma justa uma kitnet e uma casa de república |
+| Preço por quarto | total por mês (aluguel + condomínio + IPTU) ÷ nº de quartos (kitnet sem quartos no anúncio conta como 1) | Com um quarto para cada pessoa, é quanto cada uma paga: compara de forma justa uma kitnet e uma casa de república. O cartão mostra a conta ("R$ 2.400 por mês ÷ 3 quartos"), para quem vai dividir de outro jeito refazer |
 | Preço típico | a mediana: metade dos imóveis custa menos, metade custa mais | Diferente da média, não se deixa levar por um anúncio caríssimo |
-| Distância | em linha reta, do bairro até o campus escolhido | O site não informa o endereço dos imóveis, então todos os imóveis de um bairro têm a mesma distância |
+| Distância | em linha reta, do bairro até o lugar escolhido (USP, UFSCar ou rodoviária) | O site não informa o endereço dos imóveis, então todos os imóveis de um bairro têm a mesma distância |
 | Tempo a pé | distância + 30% (as ruas fazem curvas), a 4,8 km/h, arredondado de 5 em 5 minutos | "~20 min a pé" é mais fácil de imaginar que "1,2 km" |
 
-No mapa, cada bairro mostra o preço típico por pessoa, em **5 faixas com quantidades parecidas de bairros** (e não divididas por igual entre o mais barato e o mais caro): assim um bairro caríssimo não deixa todos os outros com a mesma cor. A lista de bairros mais em conta só inclui bairros com pelo menos 3 imóveis. Imóveis só comerciais e reservados ficam de fora.
+Quem estuda na UFSCar escolhe medir a distância até a **rodoviária** (muita gente mora no centro e vai de ônibus, que sai de lá) ou até o campus; a rodoviária vem marcada, por ser o mais comum.
+
+No mapa, cada bairro mostra o preço típico por quarto, em **5 faixas com quantidades parecidas de bairros** (e não divididas por igual entre o mais barato e o mais caro): assim um bairro caríssimo não deixa todos os outros com a mesma cor. A lista de bairros mais em conta só inclui bairros com pelo menos 3 imóveis. Imóveis só comerciais e reservados ficam de fora.
 
 ## **Várias imobiliárias**
 
@@ -257,6 +259,17 @@ Se o download falhar (GitHub fora do ar, sem internet), **o dashboard continua f
 **Cuidado com 15/10/2026:** até 14/10/2026 a coleta cobria só ~30 bairros da região universitária; a partir de 15/10 cobre a cidade toda. Nesse dia, ~480 imóveis aparecem "pela primeira vez" sem serem novos de verdade, então ninguém que apareceu nesse dia (nem no primeiro dia do histórico) ganha o selo Novo.
 
 Para testar sem internet, a variável de ambiente `HISTORICO_URL` troca o endereço do histórico (os testes apontam para um `.tar.gz` sintético, `file:///...`).
+
+## **Do mapa à lista e da lista ao mapa**
+
+Duas interações que o Streamlit não faz sozinho:
+
+- **Clicar num bairro do mapa** escolhe o bairro na lista e desce a página até ela. O mapa (`st_folium`) devolve ao Python o último objeto clicado e o ponto do clique. O ponto muda a cada clique, então é ele que diz se houve um clique novo (mesmo num bairro já clicado). Os pinos dos campi e da rodoviária ficam num grupo, para um clique neles não contar como um clique no último bairro.
+- **Ver no mapa**: o cartão inteiro é um link (HTML) para o anúncio, e um clique no HTML não chega ao Python. Por isso o botão é um `st.button` de verdade, no mesmo container do cartão (`st.container(key="cartao-N")`): o CSS acha o container pela classe `st-key-cartao-N` e põe o botão por cima da foto. O clique guarda o bairro, e o mapa é desenhado de novo, centralizado nele, com o contorno e o nome em destaque.
+
+**Rolar a página** precisa de JavaScript, e o Streamlit não roda scripts de `st.markdown` nem de `st.html`. O `components.html` roda, num iframe invisível que é da mesma origem da página e por isso alcança a página por `window.parent`. O script vai no fim da página (com tudo já desenhado) e muda a cada pedido (tem um contador): com o HTML igual, o Streamlit reaproveitaria o iframe e o script não rodaria de novo.
+
+**Cuidado com o CSS:** o `st.html` passa o HTML pelo DOMPurify, que descarta um `<style>` inteiro, sem erro nenhum, se o texto dele tiver algo parecido com uma tag (até dentro de um comentário). Um teste garante que o CSS de `app/interface.py` não tem `<`.
 
 ## **Mapa dos bairros**
 
