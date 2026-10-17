@@ -78,6 +78,7 @@ def test_pagina_principal():
     assert list(numeros(at)) == ["imóveis pra você", "preço típico por pessoa", "novos esta semana",
                                  "baixaram de preço"]
     assert int(numeros(at)["imóveis pra você"].replace(".", "")) > 0
+    assert at.selectbox(key="bairro").value is None  # nenhum bairro escolhido: mostra todos
     assert cartoes(at).count('class="cartao"') == 12
 
 
