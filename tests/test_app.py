@@ -78,8 +78,8 @@ def test_aplicar_filtros(csv_de_exemplo):
     assert codigos(tipo="Casa") == [3]
     assert codigos(dormitorios=[1]) == [2]
     assert codigos(dormitorios=[4]) == [6]                          # "4+" inclui 5 dormitórios
-    # Por pessoa: 1 -> R$ 1000, 2 -> R$ 1060 (kitnet), 3 -> R$ 750, 6 -> R$ 360 (5 quartos)
-    assert codigos(preco_max_por_pessoa=800) == [3, 6]
+    # Por quarto: 1 -> R$ 1000, 2 -> R$ 1060 (kitnet), 3 -> R$ 750, 6 -> R$ 360 (5 quartos)
+    assert codigos(preco_max_por_quarto=800) == [3, 6]
 
 
 def test_distancia_vem_do_campus_escolhido(csv_de_exemplo):

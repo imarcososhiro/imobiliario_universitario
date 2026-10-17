@@ -75,7 +75,7 @@ def numeros(at: AppTest) -> dict[str, str]:
 def test_pagina_principal():
     at = abrir("Home.py")
     assert not at.exception
-    assert list(numeros(at)) == ["imóveis pra você", "preço típico por pessoa", "novos esta semana",
+    assert list(numeros(at)) == ["imóveis pra você", "preço típico por quarto", "novos esta semana",
                                  "baixaram de preço"]
     assert int(numeros(at)["imóveis pra você"].replace(".", "")) > 0
     assert at.selectbox(key="bairro").value is None  # nenhum bairro escolhido: mostra todos
@@ -123,7 +123,7 @@ def test_pagina_funciona_sem_historico(monkeypatch, tmp_path):
     at = abrir("Home.py")
     assert not at.exception
     assert any("não pôde ser carregado" in caption.value for caption in at.caption)
-    assert list(numeros(at)) == ["imóveis pra você", "preço típico por pessoa"]
+    assert list(numeros(at)) == ["imóveis pra você", "preço típico por quarto"]
     assert "selo novo" not in cartoes(at) and "selo queda" not in cartoes(at)
 
 

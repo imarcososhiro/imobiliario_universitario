@@ -67,7 +67,7 @@ class Filtros:
     distancia_max_km: float | None = None                 # None = qualquer distância
     tipo: str | None = None                               # "Apartamento", "Casa" ou None (tanto faz)
     dormitorios: list[int] = field(default_factory=list)  # vazio = todos; 4 vale "4 ou mais"
-    preco_max_por_pessoa: float | None = None             # None = sem limite
+    preco_max_por_quarto: float | None = None             # None = sem limite
     imobiliarias: list[str] = field(default_factory=list)  # valores de `fonte`; vazio = todas
 
 
@@ -82,8 +82,8 @@ def aplicar_filtros(df: pd.DataFrame, filtros: Filtros) -> pd.DataFrame:
     if filtros.dormitorios:
         quatro_ou_mais = DORMITORIOS_OU_MAIS in filtros.dormitorios
         selecao &= df["dormitorios"].isin(filtros.dormitorios) | (quatro_ou_mais & (df["dormitorios"] >= DORMITORIOS_OU_MAIS))
-    if filtros.preco_max_por_pessoa is not None:
-        selecao &= df["custo_por_dormitorio"] <= filtros.preco_max_por_pessoa
+    if filtros.preco_max_por_quarto is not None:
+        selecao &= df["custo_por_dormitorio"] <= filtros.preco_max_por_quarto
     if filtros.imobiliarias:
         selecao &= df["fonte"].isin(filtros.imobiliarias)
     return df[selecao]

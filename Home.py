@@ -19,7 +19,7 @@ ALTURA_MAPA = 460
 POR_PAGINA = 12
 # Ordem dos cartões: rótulo -> (coluna, crescente?)
 ORDENACAO = {
-    "Menor preço por pessoa": ("custo_por_dormitorio", True),
+    "Menor preço por quarto": ("custo_por_dormitorio", True),
     "Menor aluguel total": ("total_mensal", True),
     "Mais perto do campus": ("distancia_km", True),
     "Novidades primeiro": ("novidade", False),  # novos ou que baixaram de preço na última semana
@@ -94,8 +94,9 @@ with st.expander(f"Ver todos os {fmt.numero(len(selecao))} em uma tabela", icon=
 
 with st.expander("Como funciona", icon=":material/help:"):
     st.markdown(f"""
-- **Preço por pessoa**: o total do mês (aluguel + condomínio + IPTU) dividido pelo número de quartos. É quanto
-  cada um pagaria dividindo o imóvel, então dá para comparar uma kitnet com uma casa de república.
+- **Preço por quarto**: o total do mês (aluguel + condomínio + IPTU) dividido pelo número de quartos. Se cada
+  pessoa ficar com um quarto, é quanto cada uma paga, então dá para comparar uma kitnet com uma casa de república.
+  Kitnet sem o número de quartos no anúncio conta como 1 quarto.
 - **Preço típico**: a mediana. Metade dos imóveis custa menos que isso, metade custa mais. Diferente da média,
   ela não se deixa levar por um anúncio caríssimo.
 - **Distância**: em linha reta, do bairro até o campus. O site não informa o endereço, então todos os imóveis de

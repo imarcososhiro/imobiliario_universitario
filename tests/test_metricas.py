@@ -1,4 +1,4 @@
-"""Testes das métricas: preço por pessoa, área, distância e o resumo por bairro."""
+"""Testes das métricas: preço por quarto, área, distância e o resumo por bairro."""
 import math
 
 import pandas as pd
