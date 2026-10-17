@@ -21,7 +21,7 @@ POR_PAGINA = 12
 ORDENACAO = {
     "Menor preço por quarto": ("custo_por_dormitorio", True),
     "Menor aluguel total": ("total_mensal", True),
-    "Mais perto do campus": ("distancia_km", True),
+    "Mais perto": ("distancia_km", True),
     "Novidades primeiro": ("novidade", False),  # novos ou que baixaram de preço na última semana
     "Mais espaço": ("area_m2", False),
 }
@@ -50,13 +50,13 @@ resumo = resumo_por_bairro(df)
 st.header("Onde ficam", anchor="mapa")
 coluna_mapa, coluna_bairros = st.columns([3, 2], gap="medium")
 with coluna_mapa:
-    retorno = st_folium(criar_mapa(resumo, escolhas.campus, escolhas.distancia_max_km), key="mapa",
+    retorno = st_folium(criar_mapa(resumo, escolhas.perto_de, escolhas.distancia_max_km), key="mapa",
                         height=ALTURA_MAPA, use_container_width=True, returned_objects=["last_active_drawing"])
     legenda_do_mapa(legenda(faixas_de_preco(resumo["custo_por_dormitorio"])))
     st.caption("Toque ou clique num bairro para ver os imóveis dele logo abaixo.")
 with coluna_bairros:
     st.subheader("Bairros mais em conta")
-    bairros_em_conta(resumo, escolhas.campus)
+    bairros_em_conta(resumo, escolhas.perto_de)
 
 # Clicar num bairro do mapa seleciona o bairro na lista de imóveis. O mapa devolve o último
 # bairro clicado em toda execução, então só um clique novo muda a seleção.
@@ -83,7 +83,7 @@ selecao = selecao.sort_values([coluna, "custo_por_dormitorio"], ascending=[cresc
 quantidade = st.session_state.setdefault("quantidade", POR_PAGINA)
 st.caption(f"{fmt.numero(len(selecao))} {'imóvel' if len(selecao) == 1 else 'imóveis'}"
            + ("" if bairro is None else f" em {bairro}"))
-cartoes(selecao.head(quantidade), escolhas.campus)
+cartoes(selecao.head(quantidade), escolhas.perto_de)
 if len(selecao) > quantidade:
     st.button(f"Mostrar mais {min(POR_PAGINA, len(selecao) - quantidade)}", key="mostrar_mais", width="stretch",
               icon=":material/expand_more:",
@@ -99,8 +99,11 @@ with st.expander("Como funciona", icon=":material/help:"):
   Kitnet sem o número de quartos no anúncio conta como 1 quarto.
 - **Preço típico**: a mediana. Metade dos imóveis custa menos que isso, metade custa mais. Diferente da média,
   ela não se deixa levar por um anúncio caríssimo.
-- **Distância**: em linha reta, do bairro até o campus. O site não informa o endereço, então todos os imóveis de
-  um bairro aparecem com a mesma distância. O tempo a pé soma 30% ao caminho, porque as ruas fazem curvas.
+- **Distância**: em linha reta, do bairro até o campus (ou a rodoviária). O site não informa o endereço, então
+  todos os imóveis de um bairro aparecem com a mesma distância. O tempo a pé soma 30% ao caminho, porque as ruas
+  fazem curvas.
+- **Rodoviária**: muita gente da UFSCar mora no centro e vai de ônibus, que sai da rodoviária. Por isso, quem
+  estuda na UFSCar escolhe se a distância é até a rodoviária ou até o campus.
 - **Novo** e **Baixou de preço**: comparando com as coletas dos últimos dias (os sites são lidos todo dia).
   Imóveis reservados ficam de fora.
 - **Também na outra imobiliária?**: o mesmo bairro e nº de quartos, com área e preço parecidos, aparece nas

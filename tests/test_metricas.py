@@ -4,8 +4,8 @@ import math
 import pandas as pd
 import pytest
 
-from app.bairros import UFSCAR, USP, buscar_coords, distancia_km
-from app.metricas import adicionar_metricas, escolher_campus, resumo_por_bairro
+from app.bairros import RODOVIARIA, UFSCAR, USP, buscar_coords, distancia_km
+from app.metricas import adicionar_metricas, medir_distancia, resumo_por_bairro
 
 
 def imoveis(**colunas):
@@ -24,18 +24,21 @@ def test_custo_por_dormitorio_e_preco_por_m2():
     assert math.isnan(df["area_m2"].iloc[2])             # 3 m² é erro de cadastro
 
 
-def test_distancia_do_bairro_a_cada_campus():
+def test_distancia_do_bairro_a_cada_lugar():
     df = adicionar_metricas(imoveis(bairro=["Centro", "Bairro Que Não Existe"]))
     centro = buscar_coords("Centro")
     assert df["distancia_usp_km"].iloc[0] == pytest.approx(distancia_km(centro, USP))
     assert df["distancia_ufscar_km"].iloc[0] == pytest.approx(distancia_km(centro, UFSCAR))
+    assert df["distancia_rodoviaria_km"].iloc[0] == pytest.approx(distancia_km(centro, RODOVIARIA))
     assert math.isnan(df["distancia_usp_km"].iloc[1])
 
 
-def test_escolher_campus():
-    df = pd.DataFrame({"distancia_usp_km": [1.0, 3.0], "distancia_ufscar_km": [2.0, 0.5]})
-    assert escolher_campus(df, "USP")["distancia_km"].tolist() == [1.0, 3.0]
-    assert escolher_campus(df, "UFSCar")["distancia_km"].tolist() == [2.0, 0.5]
+def test_medir_distancia():
+    df = pd.DataFrame({"distancia_usp_km": [1.0, 3.0], "distancia_ufscar_km": [2.0, 0.5],
+                       "distancia_rodoviaria_km": [0.4, 2.5]})
+    assert medir_distancia(df, "USP")["distancia_km"].tolist() == [1.0, 3.0]
+    assert medir_distancia(df, "UFSCar")["distancia_km"].tolist() == [2.0, 0.5]
+    assert medir_distancia(df, "Rodoviária")["distancia_km"].tolist() == [0.4, 2.5]
 
 
 def test_resumo_por_bairro_usa_mediana():

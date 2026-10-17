@@ -15,6 +15,7 @@ from streamlit.testing.v1 import AppTest
 
 from app.dados import CAMINHO_CSV, Filtros, aplicar_filtros, carregar_imoveis
 from app.historico import DIAS_NOVIDADE, VARIAVEL_URL
+from app.metricas import COLUNAS_DISTANCIA
 from historico.consultas import INICIO_CIDADE_TODA
 from historico.snapshot import salvar_snapshot
 
@@ -36,7 +37,7 @@ def url_historico(tmp_path_factory):
     pasta = tmp_path_factory.mktemp("historico")
     csv = pd.read_csv(CAMINHO_CSV, dtype=str, keep_default_na=False)  # texto: grava de volta igualzinho
     hoje = date.fromisoformat(csv["coletado_em"].iloc[0])
-    perto = aplicar_filtros(carregar_imoveis(), Filtros(campus="USP", distancia_max_km=3.0))
+    perto = aplicar_filtros(carregar_imoveis(), Filtros(perto_de="USP", distancia_max_km=3.0))
     codigos = perto["codigo"].astype(str).tolist()
     novos, baixou = codigos[:3], codigos[3]
 
@@ -84,20 +85,34 @@ def test_pagina_principal():
 
 @pytest.mark.parametrize("mudar", [
     lambda at: at.radio(key="campus").set_value("UFSCar"),
+    lambda at: at.radio(key="campus").set_value("UFSCar").run().radio(key="perto_da_ufscar").set_value("UFSCar"),
     lambda at: at.select_slider(key="distancia").set_value("Qualquer distância"),
     lambda at: at.radio(key="tipo").set_value("Casa"),
     lambda at: at.button_group(key="quartos").set_value([2, 3]),
     lambda at: at.select_slider(key="preco").set_value(1000),
-    lambda at: at.selectbox(key="ordem").set_value("Mais perto do campus"),
+    lambda at: at.selectbox(key="ordem").set_value("Mais perto"),
     lambda at: at.selectbox(key="bairro").set_value("Centro"),
     lambda at: at.button_group(key="imobiliarias").set_value(["cardinali"]),
-], ids=["campus", "distancia", "tipo", "quartos", "preco", "ordem", "bairro", "imobiliaria"])
+], ids=["campus", "perto_da_ufscar", "distancia", "tipo", "quartos", "preco", "ordem", "bairro", "imobiliaria"])
 def test_pagina_principal_com_filtros(mudar):
     at = abrir("Home.py")
     mudar(at)
     at.run()
     assert not at.exception
     assert 'class="cartao"' in cartoes(at)
+
+
+def test_ufscar_comeca_pela_rodoviaria():
+    at = abrir("Home.py")
+    assert [radio.key for radio in at.radio] == ["campus", "tipo"]  # na USP, não há a pergunta da rodoviária
+    at.radio(key="campus").set_value("UFSCar").run()
+    assert at.radio(key="perto_da_ufscar").value == "Rodoviária"
+    assert at.select_slider(key="distancia").label == "Quão perto da rodoviária?"
+    assert "km da rodoviária" in cartoes(at)
+
+    at.radio(key="perto_da_ufscar").set_value("UFSCar").run()
+    assert at.select_slider(key="distancia").label == "Quão perto da UFSCar?"
+    assert "km da UFSCar" in cartoes(at)
 
 
 def test_mostrar_mais():
@@ -130,7 +145,7 @@ def test_pagina_funciona_sem_historico(monkeypatch, tmp_path):
 def test_pagina_principal_sem_resultados_mostra_aviso(monkeypatch):
     # Todos os imóveis a 10 km de tudo: com a distância de quando a página abre (até 3 km), nenhum
     # aparece. (Não dá para usar um filtro "impossível" com o CSV real: ele muda todo dia.)
-    longe = carregar_imoveis().assign(distancia_usp_km=10.0, distancia_ufscar_km=10.0)
+    longe = carregar_imoveis().assign(**{coluna: 10.0 for coluna in COLUNAS_DISTANCIA.values()})
     monkeypatch.setattr("app.dados.carregar_imoveis", lambda: longe)
     at = abrir("Home.py")
     assert not at.exception

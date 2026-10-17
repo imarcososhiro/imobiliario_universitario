@@ -6,8 +6,8 @@ import folium
 import pandas as pd
 
 from app import formatacao as fmt
-from app.bairros import RODOVIARIA, buscar_contorno
-from app.metricas import CAMPI
+from app.bairros import buscar_contorno
+from app.metricas import DO_LUGAR, LUGARES
 
 # Escala sequencial de um tom só (azul): mais escuro = mais caro. Um tom só lê bem para
 # daltônicos; arco-íris e vermelho/verde não. São 5 degraus bem separados da mesma escala azul.
@@ -27,6 +27,11 @@ ICONE_ONIBUS = ("M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v
                 "0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67"
                 "-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5"
                 "-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z")
+PINOS = [  # lugar, ícone, dica ao passar o mouse
+    ("USP", ICONE_CAMPUS, "Campus 1 da USP"),
+    ("UFSCar", ICONE_CAMPUS, "Campus da UFSCar"),
+    ("Rodoviária", ICONE_ONIBUS, "Rodoviária: daqui saem os ônibus para a UFSCar"),
+]
 
 # O CSS vale dentro do mapa (que o streamlit-folium desenha num iframe à parte).
 # - Tiles do OpenStreetMap em cinza: o mapa vira fundo e as cores dos bairros aparecem mais.
@@ -95,14 +100,14 @@ def legenda(limites: list[float]) -> list[tuple[str, str]]:
             for valor, texto in zip([limites[0] - 1] + limites, textos)]
 
 
-def _texto_dica(linha: pd.Series, campus: str) -> str:
+def _texto_dica(linha: pd.Series, perto_de: str) -> str:
     return (
         f"<b>{html.escape(linha['bairro'])}</b><br>"
         f"<span class='grande'>{fmt.reais(linha['custo_por_dormitorio'])}</span> por quarto "
         f"<span class='fraco'>(típico)</span><br>"
         f"{fmt.numero(linha['imoveis'])} {'imóvel' if linha['imoveis'] == 1 else 'imóveis'} · "
         f"a partir de {fmt.reais(linha['mais_barato'])}<br>"
-        f"<span class='fraco'>{fmt.km(linha['distancia_km'])} da {campus} · "
+        f"<span class='fraco'>{fmt.km(linha['distancia_km'])} {DO_LUGAR[perto_de]} · "
         f"{fmt.minutos_a_pe(linha['distancia_km'])}</span>"
     )
 
@@ -117,12 +122,12 @@ def _pino(mapa: folium.Map, local, nome: str, icone: str, classe: str, dica: str
     ).add_to(mapa)
 
 
-def criar_mapa(resumo: pd.DataFrame, campus: str, distancia_max_km: float | None) -> folium.Map:
+def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | None) -> folium.Map:
     """Pinta cada bairro do resumo (uma linha por bairro, de metricas.resumo_por_bairro)."""
     if distancia_max_km is None:
         centro, zoom = CENTRO_DA_CIDADE, ZOOM_CIDADE_TODA
     else:
-        centro, zoom = CAMPI[campus], ZOOM_POR_DISTANCIA.get(distancia_max_km, ZOOM_CIDADE_TODA)
+        centro, zoom = LUGARES[perto_de], ZOOM_POR_DISTANCIA.get(distancia_max_km, ZOOM_CIDADE_TODA)
     mapa = folium.Map(location=centro, zoom_start=zoom, min_zoom=12, max_zoom=17, tiles="OpenStreetMap",
                       control_scale=True)
     mapa.get_root().header.add_child(folium.Element(ESTILO))
@@ -138,17 +143,22 @@ def criar_mapa(resumo: pd.DataFrame, campus: str, distancia_max_km: float | None
             # Borda branca: separa bairros vizinhos que têm cores parecidas
             style_function=lambda _, cor=cor: {"fillColor": cor, "color": "white", "weight": 1.5, "fillOpacity": 0.72},
             highlight_function=lambda _: {"color": COR_DESTAQUE, "weight": 3, "fillOpacity": 0.85},
-            tooltip=folium.Tooltip(_texto_dica(linha, campus), sticky=True),
+            tooltip=folium.Tooltip(_texto_dica(linha, perto_de), sticky=True),
         ).add_to(mapa)
 
     if distancia_max_km is not None:
-        # O raio do filtro de distância, em volta do campus
-        folium.Circle(CAMPI[campus], radius=distancia_max_km * 1000, color=COR_DESTAQUE, weight=2,
+        # O raio do filtro de distância, em volta do lugar escolhido
+        folium.Circle(LUGARES[perto_de], radius=distancia_max_km * 1000, color=COR_DESTAQUE, weight=2,
                       dash_array="6 8", fill=False, interactive=False).add_to(mapa)
 
-    for nome, local in CAMPI.items():
-        classe = "escolhido" if nome == campus else ""
-        _pino(mapa, local, nome, ICONE_CAMPUS, classe, f"Campus {'1 da USP' if nome == 'USP' else 'da UFSCar'}")
-    # A rodoviária fica a ~800 m da USP: com o nome escrito, as duas etiquetas se cobririam
-    _pino(mapa, RODOVIARIA, "", ICONE_ONIBUS, "so-icone", "Rodoviária de São Carlos")
+    # A rodoviária fica a ~800 m da USP: com os dois nomes escritos, as etiquetas se cobririam. Então a
+    # rodoviária só mostra o nome quando é a escolhida e, nesse caso, a USP fica só com o ícone.
+    for lugar, icone, dica in PINOS:
+        if lugar == perto_de:
+            classe, nome = "escolhido", lugar
+        elif lugar == "Rodoviária" or (lugar == "USP" and perto_de == "Rodoviária"):
+            classe, nome = "so-icone", ""
+        else:
+            classe, nome = "", lugar
+        _pino(mapa, LUGARES[lugar], nome, icone, classe, dica)
     return mapa

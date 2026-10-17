@@ -2,6 +2,7 @@
 import folium
 import pandas as pd
 
+from app.bairros import RODOVIARIA, UFSCAR
 from app.dados import Filtros, aplicar_filtros, carregar_imoveis
 from app.mapa import COR_SEM_DADO, CORES_FAIXAS, cor_da_faixa, criar_mapa, faixas_de_preco, legenda
 from app.metricas import resumo_por_bairro
@@ -29,21 +30,37 @@ def test_legenda():
     assert legenda([]) == []
 
 
-def desenhar(campus, distancia_max_km):
-    """O mapa e o que foi desenhado nele: as etiquetas (HTML) e os raios dos círculos (em metros)."""
-    df = aplicar_filtros(carregar_imoveis(), Filtros(campus=campus, distancia_max_km=distancia_max_km))
-    mapa = criar_mapa(resumo_por_bairro(df), campus, distancia_max_km)
+def desenhar(perto_de, distancia_max_km):
+    """O mapa e o que foi desenhado nele: as etiquetas (HTML) e os círculos (centro, raio em metros)."""
+    df = aplicar_filtros(carregar_imoveis(), Filtros(perto_de=perto_de, distancia_max_km=distancia_max_km))
+    mapa = criar_mapa(resumo_por_bairro(df), perto_de, distancia_max_km)
     filhos = list(mapa._children.values())
     etiquetas = [icone.options["html"] for marcador in filhos if isinstance(marcador, folium.Marker)
                  for icone in marcador._children.values() if isinstance(icone, folium.DivIcon)]
-    raios = [circulo.options["radius"] for circulo in filhos if isinstance(circulo, folium.Circle)]
-    return etiquetas, raios
+    circulos = [(tuple(circulo.location), circulo.options["radius"]) for circulo in filhos
+                if isinstance(circulo, folium.Circle)]
+    return etiquetas, circulos
 
 
-def test_mapa_destaca_o_campus_escolhido_e_mostra_o_raio():
-    etiquetas, raios = desenhar("UFSCar", 3.0)
+def escolhida(etiquetas):
+    """A etiqueta destacada (a do lugar escolhido): tem de haver uma só."""
+    escolhidas = [etiqueta for etiqueta in etiquetas if 'class="pino escolhido"' in etiqueta]
+    assert len(escolhidas) == 1
+    return escolhidas[0]
+
+
+def test_mapa_destaca_o_lugar_escolhido_e_mostra_o_raio():
+    etiquetas, circulos = desenhar("UFSCar", 3.0)
     assert len(etiquetas) == 3  # USP, UFSCar e rodoviária
-    escolhidos = [etiqueta for etiqueta in etiquetas if 'class="pino escolhido"' in etiqueta]
-    assert len(escolhidos) == 1 and "<span>UFSCar</span>" in escolhidos[0]
-    assert raios == [3000.0]
+    assert "<span>UFSCar</span>" in escolhida(etiquetas)
+    assert circulos == [(UFSCAR, 3000.0)]
     assert desenhar("USP", None)[1] == []  # "qualquer distância": sem círculo
+
+
+def test_mapa_perto_da_rodoviaria():
+    etiquetas, circulos = desenhar("Rodoviária", 1.5)
+    assert "<span>Rodoviária</span>" in escolhida(etiquetas)
+    assert circulos == [(RODOVIARIA, 1500.0)]
+    # A USP fica a ~800 m: só com o ícone, para as duas etiquetas não se cobrirem
+    assert sum('class="pino so-icone"' in etiqueta for etiqueta in etiquetas) == 1
+    assert not any("<span>USP</span>" in etiqueta for etiqueta in etiquetas)

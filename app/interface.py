@@ -7,10 +7,13 @@ import streamlit as st
 from app import formatacao as fmt
 from app.dados import DORMITORIOS_OU_MAIS, IMOBILIARIAS, Filtros
 from app.historico import DIAS_NOVIDADE
-from app.metricas import CAMPI, MINIMO_IMOVEIS_BAIRRO
+from app.metricas import DO_LUGAR, MINIMO_IMOVEIS_BAIRRO
 
 TIPOS = {"Tanto faz": None, "Apartamento": "Apartamento", "Casa": "Casa"}
-# Distância do bairro até o campus, em linha reta (km); None = qualquer distância
+# Quem estuda na UFSCar escolhe de onde medir a distância. Muita gente mora no centro, perto da
+# rodoviária, e vai de ônibus (é de lá que saem as linhas para o campus); por isso ela vem primeiro.
+PERTO_DA_UFSCAR = {"Rodoviária": ":material/directions_bus: Rodoviária", "UFSCar": ":material/school: UFSCar"}
+# Distância do bairro até o lugar escolhido, em linha reta (km); None = qualquer distância
 DISTANCIAS = {"A pé (até 1,5 km)": 1.5, "Até 3 km": 3.0, "Até 5 km": 5.0, "Qualquer distância": None}
 SEM_LIMITE = "Sem limite"
 PRECOS_POR_QUARTO = list(range(500, 3001, 100)) + [SEM_LIMITE]
@@ -97,9 +100,17 @@ def estilo() -> None:
 def filtros() -> Filtros:
     """As perguntas do topo da página, do jeito que um estudante pensa na busca."""
     with st.container(border=True):
-        campus, quartos, tipo, imobiliaria = st.columns([1, 1.2, 1.6, 1.2])
-        escolha_campus = campus.radio("Você estuda na", list(CAMPI), horizontal=True, key="campus",
-                                      help="A distância é medida até o Campus 1 da USP ou até a UFSCar")
+        campus, quartos, tipo, imobiliaria = st.columns([1.35, 1, 1.6, 1])
+        estuda_na = campus.radio("Você estuda na", ["USP", "UFSCar"], horizontal=True, key="campus",
+                                 help="A distância é medida até o Campus 1 da USP. Na UFSCar, você escolhe: "
+                                      "até o campus ou até a rodoviária, de onde saem os ônibus")
+        perto_de = estuda_na
+        if estuda_na == "UFSCar":
+            perto_de = campus.radio(
+                "Quer morar perto da", list(PERTO_DA_UFSCAR), horizontal=True, key="perto_da_ufscar",
+                format_func=PERTO_DA_UFSCAR.get,
+                help="Muita gente da UFSCar mora no centro, perto da rodoviária, e vai de ônibus: é de lá que "
+                     "saem as linhas para o campus. Quem prefere ir a pé escolhe a UFSCar")
         dormitorios = quartos.pills(
             "Quantos quartos?", list(range(1, DORMITORIOS_OU_MAIS + 1)), selection_mode="multi", key="quartos",
             format_func=lambda n: f"{n}+" if n == DORMITORIOS_OU_MAIS else str(n),
@@ -114,11 +125,13 @@ def filtros() -> Filtros:
             format_func=lambda valor: valor if valor == SEM_LIMITE else fmt.reais(valor),
             help="Aluguel + condomínio + IPTU, dividido pelo número de quartos. Com um quarto para "
                  "cada pessoa, é quanto cada uma paga")
-        distancia_max = distancia.select_slider("Quão perto do campus?", list(DISTANCIAS), value="Até 3 km",
-                                                key="distancia",
-                                                help="Em linha reta, do bairro até o campus (o site não "
-                                                     "informa o endereço dos imóveis)")
-    return Filtros(campus=escolha_campus, distancia_max_km=DISTANCIAS[distancia_max], tipo=TIPOS[escolha_tipo],
+        # O rótulo muda com o lugar ("Quão perto da rodoviária?"), mas o filtro continua o mesmo: o que
+        # identifica o widget é a key, então a distância escolhida não se perde
+        distancia_max = distancia.select_slider(f"Quão perto {DO_LUGAR[perto_de]}?", list(DISTANCIAS),
+                                                value="Até 3 km", key="distancia",
+                                                help="Em linha reta, do bairro até lá (o site não informa o "
+                                                     "endereço dos imóveis)")
+    return Filtros(perto_de=perto_de, distancia_max_km=DISTANCIAS[distancia_max], tipo=TIPOS[escolha_tipo],
                    dormitorios=list(dormitorios or []),
                    preco_max_por_quarto=None if preco_max == SEM_LIMITE else float(preco_max),
                    imobiliarias=list(imobiliarias or []))
@@ -152,7 +165,7 @@ def legenda_do_mapa(itens: list[tuple[str, str]]) -> None:
     st.html(f'<div class="legenda"><span><b>Preço típico por quarto:</b></span>{faixas}</div>')
 
 
-def bairros_em_conta(resumo: pd.DataFrame, campus: str, quantidade: int = 6) -> None:
+def bairros_em_conta(resumo: pd.DataFrame, perto_de: str, quantidade: int = 6) -> None:
     """Os bairros com o menor preço típico por quarto (entre os que têm imóveis suficientes)."""
     candidatos = (resumo[resumo["imoveis"] >= MINIMO_IMOVEIS_BAIRRO].dropna(subset=["custo_por_dormitorio"])
                   .sort_values(["custo_por_dormitorio", "imoveis"], ascending=[True, False]).head(quantidade))
@@ -162,13 +175,13 @@ def bairros_em_conta(resumo: pd.DataFrame, campus: str, quantidade: int = 6) -> 
     linhas = "".join(
         f'<div class="bairro-linha"><span class="posicao">{posicao}</span>'
         f'<div class="nome">{html.escape(linha["bairro"])}<small>{fmt.numero(linha["imoveis"])} imóveis · '
-        f'{fmt.minutos_a_pe(linha["distancia_km"])} da {campus}</small></div>'
+        f'{fmt.minutos_a_pe(linha["distancia_km"])} {DO_LUGAR[perto_de]}</small></div>'
         f'<span class="valor">{fmt.reais(linha["custo_por_dormitorio"])}<small>/quarto</small></span></div>'
         for posicao, (_, linha) in enumerate(candidatos.iterrows(), start=1))
     st.html(f'<div class="bairros">{linhas}</div>')
 
 
-def _cartao(imovel: pd.Series, campus: str) -> str:
+def _cartao(imovel: pd.Series, perto_de: str) -> str:
     """Um cartão em HTML. Tudo o que vem do site é escapado antes de entrar no HTML."""
     foto = imovel["foto_url"]
     if isinstance(foto, str) and foto.startswith("https://"):
@@ -208,7 +221,7 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
         detalhes.append(fmt.metros_quadrados(imovel["area_m2"]))
     lugar = html.escape(imovel["bairro"])
     if pd.notna(imovel["distancia_km"]):
-        lugar += f" · {fmt.km(imovel['distancia_km'])} da {campus} · {fmt.minutos_a_pe(imovel['distancia_km'])}"
+        lugar += f" · {fmt.km(imovel['distancia_km'])} {DO_LUGAR[perto_de]} · {fmt.minutos_a_pe(imovel['distancia_km'])}"
 
     return (
         f'<a class="cartao" href="{html.escape(imovel["url"], quote=True)}" target="_blank" rel="noopener">'
@@ -221,9 +234,9 @@ def _cartao(imovel: pd.Series, campus: str) -> str:
     )
 
 
-def cartoes(df: pd.DataFrame, campus: str) -> None:
+def cartoes(df: pd.DataFrame, perto_de: str) -> None:
     # Tudo numa linha só: no Markdown, uma linha em branco ou um recuo quebrariam o bloco de HTML
-    st.markdown(f'<div class="cartoes">{"".join(_cartao(imovel, campus) for _, imovel in df.iterrows())}</div>',
+    st.markdown(f'<div class="cartoes">{"".join(_cartao(imovel, perto_de) for _, imovel in df.iterrows())}</div>',
                 unsafe_allow_html=True)
 
 

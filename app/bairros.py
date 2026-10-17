@@ -4,7 +4,7 @@ import json
 import math
 
 from geo import nomes
-from geo.lugares import RODOVIARIA, UFSCAR, USP  # noqa: F401 (usados pelo mapa)
+from geo.lugares import RODOVIARIA, UFSCAR, USP  # noqa: F401 (usados pelas métricas)
 
 CAMINHO_GEOJSON = nomes.PASTA_GEO / "bairros.geojson"
 
