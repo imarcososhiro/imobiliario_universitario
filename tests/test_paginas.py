@@ -102,6 +102,22 @@ def test_pagina_principal_com_filtros(mudar):
     assert 'class="cartao"' in cartoes(at)
 
 
+def rolagens(at: AppTest) -> list[str]:
+    """O HTML dos scripts de rolagem da página (cada um vira um iframe invisível)."""
+    return [iframe.proto.srcdoc for iframe in at.get("iframe")]
+
+
+def test_rolagem_pedida_acontece_uma_vez():
+    # É o que um clique num bairro do mapa pede (o AppTest não consegue clicar dentro do mapa)
+    at = abrir("Home.py")
+    assert rolagens(at) == []  # ao abrir, a página não rola sozinha
+    at.session_state["rolar_ate"] = "imoveis"
+    at.run()
+    assert len(rolagens(at)) == 1 and 'getElementById("imoveis")' in rolagens(at)[0]
+    at.run()
+    assert rolagens(at) == []  # na próxima vez que a página roda, não rola de novo
+
+
 def test_ufscar_comeca_pela_rodoviaria():
     at = abrir("Home.py")
     assert [radio.key for radio in at.radio] == ["campus", "tipo"]  # na USP, não há a pergunta da rodoviária

@@ -35,7 +35,8 @@ def desenhar(perto_de, distancia_max_km):
     df = aplicar_filtros(carregar_imoveis(), Filtros(perto_de=perto_de, distancia_max_km=distancia_max_km))
     mapa = criar_mapa(resumo_por_bairro(df), perto_de, distancia_max_km)
     filhos = list(mapa._children.values())
-    etiquetas = [icone.options["html"] for marcador in filhos if isinstance(marcador, folium.Marker)
+    pinos = [pino for grupo in filhos if isinstance(grupo, folium.FeatureGroup) for pino in grupo._children.values()]
+    etiquetas = [icone.options["html"] for marcador in pinos if isinstance(marcador, folium.Marker)
                  for icone in marcador._children.values() if isinstance(icone, folium.DivIcon)]
     circulos = [(tuple(circulo.location), circulo.options["radius"]) for circulo in filhos
                 if isinstance(circulo, folium.Circle)]

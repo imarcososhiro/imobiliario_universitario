@@ -7,7 +7,7 @@ from app import formatacao as fmt
 from app.dados import aplicar_filtros, carregar_imoveis
 from app.historico import carregar_historico, marcar_novidades
 from app.interface import (bairros_em_conta, cartoes, estilo, filtros, legenda_do_mapa, numeros,
-                           tabela_imoveis)
+                           rolar_ate, tabela_imoveis)
 from app.mapa import criar_mapa, faixas_de_preco, legenda
 from app.metricas import resumo_por_bairro
 
@@ -51,19 +51,26 @@ st.header("Onde ficam", anchor="mapa")
 coluna_mapa, coluna_bairros = st.columns([3, 2], gap="medium")
 with coluna_mapa:
     retorno = st_folium(criar_mapa(resumo, escolhas.perto_de, escolhas.distancia_max_km), key="mapa",
-                        height=ALTURA_MAPA, use_container_width=True, returned_objects=["last_active_drawing"])
+                        height=ALTURA_MAPA, use_container_width=True,
+                        returned_objects=["last_active_drawing", "last_object_clicked"])
     legenda_do_mapa(legenda(faixas_de_preco(resumo["custo_por_dormitorio"])))
     st.caption("Toque ou clique num bairro para ver os imóveis dele logo abaixo.")
 with coluna_bairros:
     st.subheader("Bairros mais em conta")
     bairros_em_conta(resumo, escolhas.perto_de)
 
-# Clicar num bairro do mapa seleciona o bairro na lista de imóveis. O mapa devolve o último
-# bairro clicado em toda execução, então só um clique novo muda a seleção.
-clicado = ((retorno or {}).get("last_active_drawing") or {}).get("properties", {}).get("bairro")
-if clicado and clicado != st.session_state.get("ultimo_bairro_clicado"):
-    st.session_state["ultimo_bairro_clicado"] = clicado
-    st.session_state["bairro"] = clicado
+# Clicar num bairro do mapa seleciona o bairro na lista de imóveis e desce a página até ela. O mapa
+# devolve, em toda execução, o ponto do último clique e o último objeto clicado. O ponto muda a cada
+# clique (mesmo num bairro já clicado), então é ele que diz se houve um clique novo; o objeto diz em
+# qual bairro foi. Um pino (USP, rodoviária...) não tem bairro: clicar nele não muda nada.
+retorno = retorno or {}
+ponto = retorno.get("last_object_clicked")
+if ponto != st.session_state.get("ultimo_clique_no_mapa"):
+    st.session_state["ultimo_clique_no_mapa"] = ponto
+    clicado = ((retorno.get("last_active_drawing") or {}).get("properties") or {}).get("bairro")
+    if ponto and clicado:
+        st.session_state["bairro"] = clicado
+        st.session_state["rolar_ate"] = "imoveis"
 
 # --- Imóveis -------------------------------------------------------------------------------
 bairros = sorted(df["bairro"].unique())
@@ -113,3 +120,7 @@ with st.expander("Como funciona", icon=":material/help:"):
 st.divider()
 st.caption("Projeto acadêmico, sem vínculo com as imobiliárias. Código e dados: "
            "[github.com/imarcososhiro/imobiliario_universitario](https://github.com/imarcososhiro/imobiliario_universitario)")
+
+# Por último, com a página toda desenhada: o lugar de destino já existe e está na posição certa
+if ancora := st.session_state.pop("rolar_ate", None):
+    rolar_ate(ancora)
