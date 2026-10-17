@@ -126,10 +126,11 @@ def test_pagina_funciona_sem_historico(monkeypatch, tmp_path):
     assert "selo novo" not in cartoes(at) and "selo queda" not in cartoes(at)
 
 
-def test_pagina_principal_sem_resultados_mostra_aviso():
+def test_pagina_principal_sem_resultados_mostra_aviso(monkeypatch):
+    # Todos os imóveis a 10 km de tudo: com a distância de quando a página abre (até 3 km), nenhum
+    # aparece. (Não dá para usar um filtro "impossível" com o CSV real: ele muda todo dia.)
+    longe = carregar_imoveis().assign(distancia_usp_km=10.0, distancia_ufscar_km=10.0)
+    monkeypatch.setattr("app.dados.carregar_imoveis", lambda: longe)
     at = abrir("Home.py")
-    # A UFSCar fica na borda da cidade: não há bairro com imóveis a 1,5 km dela
-    at.radio(key="campus").set_value("UFSCar")
-    at.select_slider(key="distancia").set_value("A pé (até 1,5 km)").run()
     assert not at.exception
     assert "Nenhum imóvel" in at.info[0].value
