@@ -1,7 +1,7 @@
 """Testes dos cartões dos imóveis (HTML montado em app/interface.py)."""
 import pandas as pd
 
-from app.interface import _cartao
+from app.interface import CSS, _cartao
 
 
 def imovel(**outros):
@@ -37,3 +37,9 @@ def test_cartao_com_a_distancia_ate_a_rodoviaria():
 def test_cartao_com_possivel_duplicata():
     cartao = _cartao(imovel(fonte="cardinali", duplicata_de="roca"), "USP")
     assert "Também na Roca?" in cartao and 'class="selo duplicata"' in cartao
+
+
+def test_css_sem_nada_parecido_com_tag():
+    # O st.html passa pelo DOMPurify, que joga fora o <style> inteiro se o texto dele tiver algo como
+    # uma tag (um "<a>" num comentário, por exemplo): a página perderia todo o estilo, sem erro nenhum
+    assert "<" not in CSS.strip().removeprefix("<style>").removesuffix("</style>")

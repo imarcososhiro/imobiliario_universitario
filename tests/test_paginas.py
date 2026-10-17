@@ -63,8 +63,8 @@ def com_historico(monkeypatch, url_historico):
 
 
 def cartoes(at: AppTest) -> str:
-    """O HTML da grade de cartões dos imóveis."""
-    return next(markdown.value for markdown in at.markdown if 'class="cartoes"' in markdown.value)
+    """O HTML de todos os cartões dos imóveis (um st.markdown por cartão)."""
+    return "".join(markdown.value for markdown in at.markdown if 'class="cartao"' in markdown.value)
 
 
 def numeros(at: AppTest) -> dict[str, str]:
@@ -129,6 +129,18 @@ def test_ufscar_comeca_pela_rodoviaria():
     at.radio(key="perto_da_ufscar").set_value("UFSCar").run()
     assert at.select_slider(key="distancia").label == "Quão perto da UFSCar?"
     assert "km da UFSCar" in cartoes(at)
+
+
+def test_ver_no_mapa():
+    at = abrir("Home.py")
+    botao = next(botao for botao in at.button if botao.key.startswith("ver-no-mapa-"))
+    botao.click().run()
+    assert not at.exception
+    assert f"{at.session_state['destaque']} ·" in cartoes(at)  # o bairro do primeiro cartão
+    assert len(rolagens(at)) == 1 and 'getElementById("mapa")' in rolagens(at)[0]
+
+    at.selectbox(key="ordem").set_value("Mais perto").run()
+    assert rolagens(at) == []  # mudar outra coisa não rola a página de novo
 
 
 def test_mostrar_mais():
