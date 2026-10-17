@@ -1,12 +1,14 @@
 """Peças da página: filtros, números do resumo, lista de bairros e os cartões dos imóveis."""
 import html
 import json
+from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
 from app import formatacao as fmt
+from app.bairros import buscar_contorno
 from app.dados import DORMITORIOS_OU_MAIS, IMOBILIARIAS, Filtros
 from app.historico import DIAS_NOVIDADE
 from app.metricas import DO_LUGAR, MINIMO_IMOVEIS_BAIRRO
@@ -37,15 +39,42 @@ CSS = """
 .numero b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
 .numero span { font-weight: 600; font-size: 14px; }
 .numero small { color: #5d6275; font-size: 12.5px; }
-.cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+/* A grade de cartões. Cada cartão é um container do Streamlit com key "cartao-N", que guarda o HTML
+   do cartão e o botão "Ver no mapa". O Streamlit põe a key como classe (st-key-...): é por ela que o
+   CSS acha os containers. */
+.st-key-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+.st-key-cartoes [class*="st-key-cartao-"] { position: relative; gap: 0; transition: transform .15s ease; }
+.st-key-cartoes [class*="st-key-cartao-"]:hover { transform: translateY(-3px); }
+/* Cartões da mesma linha com a mesma altura: do container até o link, cada nível ocupa a altura toda.
+   (O Markdown do Streamlit tem margem de -15px embaixo, para compensar a do último parágrafo; aqui
+   não há parágrafo, então ela volta a 0.) */
+.st-key-cartoes { align-items: stretch; }
+.st-key-cartoes [class*="st-key-cartao-"] { height: 100%; }
+.st-key-cartoes [class*="st-key-cartao-"] > :first-child { flex: 1; }
+.st-key-cartoes [class*="st-key-cartao-"] > :first-child :is(.stMarkdown, [data-testid="stMarkdownContainer"],
+    [data-testid="stMarkdownContainer"] > div), .st-key-cartoes .cartao { height: 100%; margin: 0; }
+.st-key-cartoes [class*="st-key-cartao-"]:hover .cartao { box-shadow: 0 12px 28px rgba(23, 26, 38, .12); }
+/* O botão fica numa caixa do tamanho da foto (4:3, no alto do cartão), no canto de baixo. A caixa deixa
+   o clique passar (pointer-events: none): fora do botão, a foto continua abrindo o anúncio. */
+.st-key-cartoes [class*="st-key-ver-no-mapa-"] {
+    position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 4 / 3; padding: 10px;
+    display: flex; align-items: flex-end; justify-content: flex-end; pointer-events: none;
+}
+.st-key-cartoes [class*="st-key-ver-no-mapa-"] .stButton { width: auto; }
+.st-key-cartoes [class*="st-key-ver-no-mapa-"] button {
+    pointer-events: auto; width: auto; min-height: 0; padding: 4px 12px 4px 9px; gap: 2px; background: #fff; border: none;
+    color: #171a26; box-shadow: 0 2px 6px rgba(23, 26, 38, .25);
+}
+.st-key-cartoes [class*="st-key-ver-no-mapa-"] button:hover { color: #4f46e5; }
+.st-key-cartoes [class*="st-key-ver-no-mapa-"] button p { font-size: 12.5px; font-weight: 700; }
 .cartao {
     display: flex; flex-direction: column; overflow: hidden; border-radius: 20px; background: #fff;
     color: #171a26 !important; text-decoration: none !important; border: 1px solid #e6e8f0;
-    box-shadow: 0 1px 2px rgba(23, 26, 38, .05); transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 1px 2px rgba(23, 26, 38, .05); transition: box-shadow .15s ease;
 }
-.cartao:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(23, 26, 38, .12); }
-.cartao .foto { position: relative; aspect-ratio: 4 / 3; background: #eceef4; }
-.cartao .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cartao .foto { position: relative; flex: none; aspect-ratio: 4 / 3; background: #eceef4; }
+/* A foto fica por cima da caixa (position: absolute): assim uma foto em pé não estica o cartão */
+.cartao .foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .cartao .sem-foto { display: grid; place-items: center; height: 100%; color: #8a8fa3; font-size: 13px; }
 .cartao .selos { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 .selo { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #fff;
@@ -66,7 +95,12 @@ CSS = """
 .cartao .detalhes span { padding: 3px 10px; border-radius: 999px; background: #f1f2f8; font-size: 12.5px; }
 /* No celular, cartões deitados (foto à esquerda): cabem uns 3 por tela, em vez de 1 */
 @media (max-width: 640px) {
-    .cartoes { gap: 12px; }
+    .st-key-cartoes { gap: 12px; }
+    .st-key-cartoes [class*="st-key-ver-no-mapa-"] {
+        width: 38%; height: 100%; aspect-ratio: auto; padding: 8px; justify-content: center;
+    }
+    .st-key-cartoes [class*="st-key-ver-no-mapa-"] button { padding: 3px 10px 3px 7px; }
+    .st-key-cartoes [class*="st-key-ver-no-mapa-"] button p { font-size: 11.5px; }
     .cartao { flex-direction: row; border-radius: 16px; }
     .cartao .foto { flex: none; width: 38%; aspect-ratio: auto; min-height: 150px; }
     .cartao .corpo { padding: 10px 12px 12px; min-width: 0; gap: 2px; }
@@ -236,10 +270,23 @@ def _cartao(imovel: pd.Series, perto_de: str) -> str:
     )
 
 
-def cartoes(df: pd.DataFrame, perto_de: str) -> None:
-    # Tudo numa linha só: no Markdown, uma linha em branco ou um recuo quebrariam o bloco de HTML
-    st.markdown(f'<div class="cartoes">{"".join(_cartao(imovel, perto_de) for _, imovel in df.iterrows())}</div>',
-                unsafe_allow_html=True)
+def cartoes(df: pd.DataFrame, perto_de: str, ao_ver_no_mapa: Callable[[str], None]) -> None:
+    """A grade de cartões, cada um com o botão "Ver no mapa".
+
+    O cartão inteiro é um link (HTML) para o anúncio, e um link não pode ter outro clicável dentro.
+    Além disso, um clique no HTML não chega ao Python. Por isso o "Ver no mapa" é um botão do
+    Streamlit, ao lado do HTML num mesmo container, e o CSS o põe por cima da foto. O clique no botão
+    chama `ao_ver_no_mapa(bairro)` antes de a página rodar de novo.
+    """
+    with st.container(key="cartoes"):
+        for indice, imovel in df.iterrows():
+            with st.container(key=f"cartao-{indice}"):
+                # Num <div>: começando com <a>, o Markdown poria o cartão dentro de um parágrafo.
+                # Tudo numa linha só: uma linha em branco ou um recuo quebrariam o bloco de HTML.
+                st.markdown(f"<div>{_cartao(imovel, perto_de)}</div>", unsafe_allow_html=True)
+                if buscar_contorno(imovel["bairro"]):  # bairro sem contorno não aparece no mapa
+                    st.button("Ver no mapa", key=f"ver-no-mapa-{indice}", icon=":material/map:",
+                              on_click=ao_ver_no_mapa, args=(imovel["bairro"],))
 
 
 def rolar_ate(ancora: str) -> None:

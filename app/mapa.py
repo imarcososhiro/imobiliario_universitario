@@ -6,14 +6,15 @@ import folium
 import pandas as pd
 
 from app import formatacao as fmt
-from app.bairros import buscar_contorno
+from app.bairros import buscar_contorno, buscar_coords
 from app.metricas import DO_LUGAR, LUGARES
 
 # Escala sequencial de um tom só (azul): mais escuro = mais caro. Um tom só lê bem para
 # daltônicos; arco-íris e vermelho/verde não. São 5 degraus bem separados da mesma escala azul.
 CORES_FAIXAS = ["#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]
 COR_SEM_DADO = "#d9dce5"
-COR_DESTAQUE = "#4f46e5"  # a cor principal do tema (.streamlit/config.toml)
+COR_DESTAQUE = "#4f46e5"  # a cor principal do tema (.streamlit/config.toml): o lugar escolhido
+COR_TEXTO = "#171a26"     # o bairro do "Ver no mapa": escuro, para não confundir com o lugar escolhido
 CENTRO_DA_CIDADE = (-22.005, -47.89)
 # Zoom de acordo com a distância escolhida: dá para ver o círculo inteiro numa tela de computador.
 # (Enquadrar automaticamente, com fit_bounds, não funciona bem: o streamlit-folium cria o mapa num
@@ -21,12 +22,14 @@ CENTRO_DA_CIDADE = (-22.005, -47.89)
 ZOOM_POR_DISTANCIA = {1.5: 15, 3.0: 14, 5.0: 13}
 ZOOM_CIDADE_TODA = 13
 
-# Ícones "school" e "directions_bus" do Material Design (licença Apache 2.0), desenhados em SVG
+# Ícones "school", "directions_bus" e "location_on" do Material Design (licença Apache 2.0), em SVG
 ICONE_CAMPUS = "M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"
 ICONE_ONIBUS = ("M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 "
                 "0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67"
                 "-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5"
                 "-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z")
+ICONE_BAIRRO = ("M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12"
+                "-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z")
 PINOS = [  # lugar, ícone, dica ao passar o mouse
     ("USP", ICONE_CAMPUS, "Campus 1 da USP"),
     ("UFSCar", ICONE_CAMPUS, "Campus da UFSCar"),
@@ -64,7 +67,10 @@ ESTILO = f"""
 .pino.escolhido::after {{ border-top-color: {COR_DESTAQUE}; }}
 .pino.escolhido svg {{ background: rgba(255, 255, 255, .22); }}
 .pino.so-icone {{ padding: 3px; }}  /* só o ícone: o nome aparece ao passar o mouse */
-.pino.so-icone svg {{ width: 13px; height: 13px; padding: 3px; background: #171a26; color: #fff; }}
+.pino.so-icone svg {{ width: 13px; height: 13px; padding: 3px; background: {COR_TEXTO}; color: #fff; }}
+.pino.bairro {{ background: {COR_TEXTO}; color: #fff; z-index: 3; }}
+.pino.bairro::after {{ border-top-color: {COR_TEXTO}; }}
+.pino.bairro svg {{ background: rgba(255, 255, 255, .18); }}
 </style>
 """
 
@@ -123,12 +129,21 @@ def _pino(grupo: folium.FeatureGroup, local, nome: str, icone: str, classe: str,
     ).add_to(grupo)
 
 
-def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | None) -> folium.Map:
-    """Pinta cada bairro do resumo (uma linha por bairro, de metricas.resumo_por_bairro)."""
+def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | None,
+               destaque: str | None = None) -> folium.Map:
+    """Pinta cada bairro do resumo (uma linha por bairro, de metricas.resumo_por_bairro).
+
+    `destaque` é o bairro do "Ver no mapa" de um cartão: o mapa centraliza nele, com o contorno
+    reforçado e o nome escrito. Se ele não estiver no resumo (os filtros o tiraram), é ignorado.
+    """
     if distancia_max_km is None:
         centro, zoom = CENTRO_DA_CIDADE, ZOOM_CIDADE_TODA
     else:
         centro, zoom = LUGARES[perto_de], ZOOM_POR_DISTANCIA.get(distancia_max_km, ZOOM_CIDADE_TODA)
+    linha_destaque = resumo[resumo["bairro"] == destaque]
+    contorno_destaque = buscar_contorno(destaque) if destaque and not linha_destaque.empty else None
+    if contorno_destaque:
+        centro = buscar_coords(destaque)
     mapa = folium.Map(location=centro, zoom_start=zoom, min_zoom=12, max_zoom=17, tiles="OpenStreetMap",
                       control_scale=True)
     mapa.get_root().header.add_child(folium.Element(ESTILO))
@@ -165,4 +180,15 @@ def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | No
         else:
             classe, nome = "", lugar
         _pino(pinos, LUGARES[lugar], nome, icone, classe, dica)
+
+    if contorno_destaque:
+        # Desenhado por último, para ficar por cima dos vizinhos: uma borda branca larga por baixo
+        # (o "halo") faz a borda escura aparecer tanto nos bairros claros quanto nos escuros.
+        # Sem preenchimento e sem interação: passar o mouse continua mostrando a dica do bairro.
+        for cor, espessura in (("white", 8), (COR_TEXTO, 3.5)):
+            folium.GeoJson(contorno_destaque, interactive=False,
+                           style_function=lambda _, cor=cor, espessura=espessura: {
+                               "fill": False, "color": cor, "weight": espessura, "opacity": 1}).add_to(mapa)
+        _pino(pinos, centro, html.escape(destaque), ICONE_BAIRRO, "bairro",
+              _texto_dica(linha_destaque.iloc[0], perto_de))
     return mapa
