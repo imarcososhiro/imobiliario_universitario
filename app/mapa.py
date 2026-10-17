@@ -41,6 +41,7 @@ ESTILO = f"""
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700&display=swap');
 .leaflet-container {{ font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #eceef3; }}
 .leaflet-tile-pane {{ filter: grayscale(1) brightness(1.06) contrast(0.9); }}
+.leaflet-interactive:focus {{ outline: none; }}  /* sem o retângulo de foco do navegador no bairro clicado */
 .leaflet-tooltip {{
     border: none; border-radius: 12px; padding: 10px 12px; color: #171a26;
     box-shadow: 0 6px 20px rgba(23, 26, 38, .18); font-size: 13px; line-height: 1.45;
@@ -112,14 +113,14 @@ def _texto_dica(linha: pd.Series, perto_de: str) -> str:
     )
 
 
-def _pino(mapa: folium.Map, local, nome: str, icone: str, classe: str, dica: str) -> None:
+def _pino(grupo: folium.FeatureGroup, local, nome: str, icone: str, classe: str, dica: str) -> None:
     desenho = f'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="{icone}"/></svg>'
     nome = f"<span>{nome}</span>" if nome else ""
     folium.Marker(
         location=local, tooltip=dica, z_index_offset=1000,
         icon=folium.DivIcon(html=f'<div class="pino {classe}">{desenho}{nome}</div>',
                             class_name="pino-caixa", icon_size=(0, 0)),
-    ).add_to(mapa)
+    ).add_to(grupo)
 
 
 def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | None) -> folium.Map:
@@ -151,6 +152,9 @@ def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | No
         folium.Circle(LUGARES[perto_de], radius=distancia_max_km * 1000, color=COR_DESTAQUE, weight=2,
                       dash_array="6 8", fill=False, interactive=False).add_to(mapa)
 
+    # Os pinos ficam num grupo: assim, clicar num pino faz o mapa devolver o próprio pino como o último
+    # objeto clicado (um ponto, sem bairro), e não o último bairro clicado (veja o Home.py)
+    pinos = folium.FeatureGroup(control=False).add_to(mapa)
     # A rodoviária fica a ~800 m da USP: com os dois nomes escritos, as etiquetas se cobririam. Então a
     # rodoviária só mostra o nome quando é a escolhida e, nesse caso, a USP fica só com o ícone.
     for lugar, icone, dica in PINOS:
@@ -160,5 +164,5 @@ def criar_mapa(resumo: pd.DataFrame, perto_de: str, distancia_max_km: float | No
             classe, nome = "so-icone", ""
         else:
             classe, nome = "", lugar
-        _pino(mapa, LUGARES[lugar], nome, icone, classe, dica)
+        _pino(pinos, LUGARES[lugar], nome, icone, classe, dica)
     return mapa

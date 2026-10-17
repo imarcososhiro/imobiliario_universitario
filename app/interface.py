@@ -1,8 +1,10 @@
 """Peças da página: filtros, números do resumo, lista de bairros e os cartões dos imóveis."""
 import html
+import json
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from app import formatacao as fmt
 from app.dados import DORMITORIOS_OU_MAIS, IMOBILIARIAS, Filtros
@@ -238,6 +240,20 @@ def cartoes(df: pd.DataFrame, perto_de: str) -> None:
     # Tudo numa linha só: no Markdown, uma linha em branco ou um recuo quebrariam o bloco de HTML
     st.markdown(f'<div class="cartoes">{"".join(_cartao(imovel, perto_de) for _, imovel in df.iterrows())}</div>',
                 unsafe_allow_html=True)
+
+
+def rolar_ate(ancora: str) -> None:
+    """Rola a página até o título com essa âncora (o `anchor` de st.header).
+
+    Rolar precisa de JavaScript, e o Streamlit não roda scripts de st.markdown nem de st.html. O
+    components.html roda, num iframe invisível (altura 0). Como o iframe é da mesma origem da
+    página, o script alcança a página de fora pelo `window.parent`.
+    """
+    # O número muda a cada pedido: com o HTML igual ao da última vez, o Streamlit reaproveitaria o
+    # iframe e o script não rodaria de novo
+    vez = st.session_state["rolagens"] = st.session_state.get("rolagens", 0) + 1
+    components.html(f"<script>/* {vez} */ window.parent.document.getElementById({json.dumps(ancora)})"
+                    "?.scrollIntoView({behavior: 'smooth', block: 'start'});</script>", height=0)
 
 
 def tabela_imoveis(df: pd.DataFrame) -> None:
