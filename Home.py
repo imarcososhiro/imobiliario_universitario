@@ -15,7 +15,6 @@ st.set_page_config(page_title="Onde morar em São Carlos", page_icon=":material/
 estilo()
 
 PASTA_ASSETS = Path(__file__).resolve().parent / "assets"
-TODOS = "Todos os bairros"
 ALTURA_MAPA = 460
 POR_PAGINA = 12
 # Ordem dos cartões: rótulo -> (coluna, crescente?)
@@ -67,20 +66,23 @@ if clicado and clicado != st.session_state.get("ultimo_bairro_clicado"):
     st.session_state["bairro"] = clicado
 
 # --- Imóveis -------------------------------------------------------------------------------
-bairros = [TODOS] + sorted(df["bairro"].unique())
+bairros = sorted(df["bairro"].unique())
 if st.session_state.get("bairro") not in bairros:
-    st.session_state["bairro"] = TODOS
+    st.session_state["bairro"] = None  # nenhum bairro escolhido = todos
 st.header("Imóveis", anchor="imoveis")
 coluna_bairro, coluna_ordem = st.columns(2)
-bairro = coluna_bairro.selectbox("Bairro", bairros, key="bairro")
+# Sem bairro escolhido, a caixa mostra o texto de exemplo (placeholder), que some quando a
+# pessoa começa a digitar. Com "Todos os bairros" como uma opção de verdade, o texto ficava lá.
+bairro = coluna_bairro.selectbox("Bairro", bairros, index=None, key="bairro",
+                                 placeholder="Todos os bairros (digite para buscar)")
 ordem = coluna_ordem.selectbox("Ordenar por", list(ORDENACAO), key="ordem")
 
-selecao = df if bairro == TODOS else df[df["bairro"] == bairro]
+selecao = df if bairro is None else df[df["bairro"] == bairro]
 coluna, crescente = ORDENACAO[ordem]
 selecao = selecao.sort_values([coluna, "custo_por_dormitorio"], ascending=[crescente, True], na_position="last")
 quantidade = st.session_state.setdefault("quantidade", POR_PAGINA)
 st.caption(f"{fmt.numero(len(selecao))} {'imóvel' if len(selecao) == 1 else 'imóveis'}"
-           + ("" if bairro == TODOS else f" em {bairro}"))
+           + ("" if bairro is None else f" em {bairro}"))
 cartoes(selecao.head(quantidade), escolhas.campus)
 if len(selecao) > quantidade:
     st.button(f"Mostrar mais {min(POR_PAGINA, len(selecao) - quantidade)}", key="mostrar_mais", width="stretch",
