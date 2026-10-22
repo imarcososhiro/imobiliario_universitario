@@ -72,6 +72,27 @@ def test_reservado_comercial_e_bairro_em_maiusculas():
     assert converter(25287).bairro == "Centro"  # o site escreve "CENTRO"
 
 
+APARTAMENTO = DOCS[61376]  # mostra o aluguel no site
+
+
+@pytest.mark.parametrize("doc", [
+    {**APARTAMENTO, "dtaPrevisionOutput": "2026-10-29T00:00:00Z"},  # ainda alugado: "Disponível em breve"
+    {campo: valor for campo, valor in APARTAMENTO.items() if campo != "portalLocation"},  # escondido à mão
+    {**APARTAMENTO, "flgHideValLocationSite": 1},  # a marcação da página, se a busca passar a trazê-la
+], ids=["previsao_de_saida", "sem_portais", "marcacao_da_pagina"])
+def test_aluguel_sob_consulta_fica_sem_aluguel_e_sem_total(doc):
+    imovel = roca.imovel_da_busca(doc, "https://roca.com.br/imovel/locacao/apartamentos/x/y/61376")
+    # Como o "Consulte-nos" da Cardinali: sem aluguel não há total, e o dashboard deixa o imóvel de fora
+    assert (imovel.aluguel, imovel.total_mensal) == (None, None)
+    assert (imovel.condominio, imovel.iptu) == (220.0, 80.0)  # esses o site continua mostrando
+
+
+def test_imovel_real_disponivel_em_breve_fica_sem_aluguel():
+    # A busca traz o aluguel (R$ 927,09), mas a página mostra "Disponível em breve" e "Valor sob consulta"
+    assert DOCS[25287]["valLocation"] == 927.09 and DOCS[25287]["dtaPrevisionOutput"]
+    assert roca.imovel_da_busca(DOCS[25287], roca.listar_imoveis(SITEMAP)[25287]).aluguel is None
+
+
 def test_coleta_em_lotes(monkeypatch):
     monkeypatch.setattr(roca, "POR_PEDIDO", 4)
     pedidos = []
@@ -103,6 +124,15 @@ def test_busca_fora_do_formato_interrompe_e_guarda_a_resposta():
     with pytest.raises(roca.ErroDeExtracao) as erro:
         coletar(busca="<html>manutenção</html>")
     assert erro.value.html == "<html>manutenção</html>"
+
+
+def test_busca_sem_portais_em_nenhum_imovel_interrompe(monkeypatch):
+    # Se a busca deixar de trazer o campo, todos os imóveis ficariam "sob consulta" e a Roca sumiria
+    # do dashboard em silêncio: a coleta falha (e abre a issue) em vez disso
+    for codigo, doc in list(DOCS.items()):
+        monkeypatch.setitem(DOCS, codigo, {campo: valor for campo, valor in doc.items() if campo != "portalLocation"})
+    with pytest.raises(roca.ErroDeExtracao, match="portalLocation"):
+        coletar()
 
 
 def test_sitemap_sem_imoveis_interrompe():

@@ -83,6 +83,20 @@ def _valor(doc: dict, campo: str) -> float | None:
     return float(valor) if valor else None
 
 
+def aluguel_escondido(doc: dict) -> bool:
+    """Se o site mostra "Valor sob consulta" no lugar do aluguel.
+
+    A página do imóvel traz a marcação flgHideValLocationSite, mas a busca devolve 0 para todos.
+    Os sinais que a busca traz são os dois motivos que o site tem para esconder o aluguel:
+    - o imóvel ainda está alugado, com previsão de saída do inquilino (dtaPrevisionOutput): o
+      site mostra "Disponível em breve" e, por configuração, esconde o valor;
+    - a imobiliária escondeu o valor à mão: esses imóveis também não vão para os portais de
+      anúncio (portalLocation vazio).
+    """
+    return bool(doc.get("flgHideValLocationSite") or doc.get("dtaPrevisionOutput")
+                or not doc.get("portalLocation"))
+
+
 def _foto(doc: dict) -> str | None:
     fotos = json.loads(doc.get("jsonPhotos") or "[]")
     return next((foto["urlPhoto"] for foto in fotos
@@ -91,7 +105,7 @@ def _foto(doc: dict) -> str | None:
 
 def imovel_da_busca(doc: dict, url: str, coletado_em: str | None = None) -> Imovel:
     """Converte um imóvel da busca do site para o formato comum (scraper/modelo.py)."""
-    aluguel = None if doc.get("flgHideValLocationSite") else _valor(doc, "valLocation")
+    aluguel = None if aluguel_escondido(doc) else _valor(doc, "valLocation")
     condominio, iptu = _valor(doc, "valCondominium"), _valor(doc, "valMonthIptu")
     bairro = doc["namDistrict"].strip()
     imovel = Imovel(
@@ -132,7 +146,7 @@ def baixar_imoveis(cliente, hoje: str) -> ColetaEmLote:
 
     resultado = ColetaEmLote(anunciados=len(links))
     codigos = list(links)
-    devolvidos = 0
+    devolvidos = com_portais = 0
     for inicio in range(0, len(codigos), POR_PEDIDO):
         resposta = baixar(cliente, url_busca(codigos[inicio:inicio + POR_PEDIDO]))
         try:
@@ -141,6 +155,7 @@ def baixar_imoveis(cliente, hoje: str) -> ColetaEmLote:
             raise ErroDeExtracao(f"resposta da busca da Roca fora do formato esperado ({erro!r})",
                                  html=resposta) from erro
         devolvidos += len(docs)
+        com_portais += sum(1 for doc in docs if doc.get("portalLocation"))
         for doc in docs:
             url = links.get(doc.get("idtProperty"), f"{SITE}/imovel/{doc.get('idtProperty')}")
             if not doc.get("flgShowSite", 1):
@@ -155,6 +170,11 @@ def baixar_imoveis(cliente, hoje: str) -> ColetaEmLote:
                 # Como na Cardinali: o erro é registrado e entra na taxa de falhas
                 resultado.falhas.append((url, f"{type(erro).__name__}: {erro}"))
                 log.warning("Falha em %s: %s", url, erro)
+    if devolvidos and not com_portais:
+        # Sem esse campo, todos os imóveis ficariam "sob consulta" (aluguel_escondido) e a Roca
+        # sumiria do dashboard sem nenhum aviso: melhor a coleta falhar e abrir a issue
+        raise ErroDeExtracao("a busca da Roca não trouxe portalLocation em nenhum imóvel: o site mudou?",
+                             html=resposta)
     resultado.indisponiveis += len(links) - devolvidos
     log.info("Roca: %d imóveis lidos, %d não alugam para estudantes", len(resultado.imoveis),
              resultado.nao_alugam_para_estudantes)
