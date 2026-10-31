@@ -197,6 +197,8 @@ Cada imobiliária é um módulo em `scraper/` que converte os anúncios para o m
 
 Os dois `robots.txt` permitem a coleta. Da Roca entram as casas e apartamentos para alugar em São Carlos; ficam de fora os que o site marca como "não aluga para estudantes" e as casas de uso comercial. O endereço completo que a busca da Roca devolve **não é guardado**.
 
+**Aluguel "sob consulta" na Roca:** o site esconde o aluguel ("Valor sob consulta") dos imóveis que ainda estão alugados, com previsão de saída do inquilino ("Disponível em breve"), e dos que a imobiliária escondeu à mão. A busca não traz a marcação que a página usa para isso, então o scraper reconhece esses imóveis pelos sinais que ela traz: a data de previsão de saída (`dtaPrevisionOutput`) e a lista de portais de anúncio vazia (`portalLocation`). Eles ficam sem aluguel e sem total, como o "Consulte-nos" da Cardinali, e por isso fora do dashboard. Se a busca deixar de trazer os portais de todos os imóveis, a coleta falha, em vez de esconder o preço de todos.
+
 - **Tudo ou nada**: se uma imobiliária falhar, o CSV do dia não é gravado (e o [aviso por issue](#operação) dispara). Gravar só as outras faria os imóveis dela "saírem" do site por um dia no histórico.
 - **Validação por imobiliária**: a queda de mais de 30% é medida em cada uma, para uma queda forte numa não ficar escondida no total.
 - **Estreia**: no primeiro dia de uma imobiliária no histórico, os imóveis dela não ganham o selo **Novo** (eles aparecem "pela primeira vez" sem serem novos).
@@ -294,7 +296,7 @@ Para rodar a coleta na hora: aba **Actions** → *Atualizacao de banco de dados 
 | `aluguel_anterior` | Preço "DE:" quando o imóvel está em promoção |
 | `aluguel_bonificado` | Aluguel com desconto por pagar em dia |
 | `condominio` / `iptu` | Valores mensais |
-| `total_mensal` | Total por mês informado pelo site (vazio quando o aluguel é "Consulte-nos") |
+| `total_mensal` | Total por mês informado pelo site (vazio quando o aluguel é "Consulte-nos" ou "sob consulta") |
 | `dormitorios` / `suites` / `banheiros` / `vagas` | Características |
 | `area_util_m2` / `area_construida_m2` / `area_total_m2` | Áreas em m² |
 | `foto_url` | Primeira foto do anúncio |
